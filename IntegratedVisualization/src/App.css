@@ -1,0 +1,50 @@
+.App {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.head {
+  background: #fff;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.supplement {
+  margin-top: 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+.main-container {
+  padding: 0 24px 24px;
+}
+
+.display-container {
+  background: #fff;
+  padding: 24px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: 600px;
+  position: relative;
+}
+
+.download {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  font-size: 16px;
+  z-index: 10;
+}
+
+.svg-container {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 40px;
+}
+
+.svg-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
