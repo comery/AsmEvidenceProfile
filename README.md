@@ -8,7 +8,7 @@ AsmEvidenceProfile provides visual evidence for genome assemblies by combining d
 
 ## Key Modules
 - `static/integrated_montage.py`: Integrates LINKVIEW’s chromosome layout with HiFi/ONT depth panels into a single SVG/PDF.
-- `static/depth_plotter_v2.py`: Sliding‑window statistics, zero/low‑depth region detection, and plotting utilities.
+- `static/depth_plotter.py`: Sliding‑window statistics, zero/low‑depth region detection, and plotting utilities.
 - `static/LINKVIEW.py`: Generates the intermediate SVG alignment layout.
 - `IntegratedVisualization/`: React frontend for interactive visualization and example assets.
 - `GCI/utility/`: Helper scripts for depth calculation, filtering, and plotting.
@@ -16,11 +16,10 @@ AsmEvidenceProfile provides visual evidence for genome assemblies by combining d
 ## Quick Start (Static Montage)
 Prepare `alignments.txt`, `sequence.fa.fai`, `hifi.depth.gz`, `nano.depth.gz` (optional `karyotype.txt`), then run:
 ```
-python3 static/integrated_montage.py alignments.txt -t 3 -r sequence.fa.fai \
-  --hifi hifi.depth.gz --nano nano.depth.gz -k karyotype.txt -w 1000 \
-  --top_margin 60 --debug_margin -o data/integrated_output
+python3 static/integrated_montage.py example/scaffold_38.paf -t 3 -k example/karyotype.txt --svg_width 1600 --svg_space 0.15 --fai example/sequence.fa.fai --hifi_a example/chai.mix.test_hifi.depth --nano_a example/chai.mix.test_nano.depth --hifi_b example/scaffold_38.hifi.depth --nano_b example/scaffold_38.nano.depth -w 10000 -o images/integrated_output --chro_axis --chro_axis_density 2 --scale_y_ratio 0.05 --max-depth-ratio 3 --panel_gap 100 --top_margin 100
 ```
-Output: `data/integrated_output.svg`. Set `--output_format pdf` to export PDF.
+Output: `images/integrated_output.svg`. Set `--output_format pdf` to export PDF.
+![integrated_output](images/integrated_output.svg)
 
 ## Dependencies
 - Python 3.8+ and `numpy`. For PDF export, install `cairosvg` or ensure `inkscape` CLI is available.
