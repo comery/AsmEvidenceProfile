@@ -1,2 +1,0 @@
-perl -n -e 'next if $.<6;chomp;s/^\s+|\s+$//g;@items=split /\s+\|\s+|\s+/;($start1,$end1,$start2,$end2,$chr1,$chr2) = @items[0,1,2,3,-2,-1];$color="";if(($start1-$end1)*($start2-$end2)<0){$color="red"};print "$chr1\t$start1\t$end1\t$chr2\t$start2\t$end2\t$color\n";' ../example1/Ath_ctg.delta.filter.coords > alignment.txt
-LINKVIEW.py  alignment.txt --chro_len len.txt -k k.txt --chro_axis -o example2
