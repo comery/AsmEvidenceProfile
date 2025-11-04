@@ -9,16 +9,18 @@ interface LinkviewUploadProps {
   fileList?: UploadFile[];
   onChange?: (fileList: UploadFile[]) => void;
   onRemove?: () => void;
+  title?: string;
 }
 
 const LinkviewUpload: React.FC<LinkviewUploadProps> = ({
   fileList = [],
   onChange,
   onRemove,
+  title,
 }) => {
   return (
     <Space direction="vertical" size="small" style={{ width: '100%' }}>
-      <Text strong>LINKVIEW 比对文件：</Text>
+      <Text strong>{title || 'LINKVIEW 比对文件：'}</Text>
       <Upload
         accept=".out,.txt,.tsv,.csv"
         fileList={fileList}

@@ -5,7 +5,6 @@ import { GithubOutlined, DownloadOutlined } from '@ant-design/icons';
 import GciFileUpload from './components/GciFileUpload';
 import LinkviewUpload from './components/LinkviewUpload';
 import KaryotypeInput from './components/KaryotypeInput';
-import ChromosomeUploadPanel, { PerChromosomeFiles } from './components/ChromosomeUploadPanel';
 import AuxiliaryLinesManager from './components/AuxiliaryLinesManager';
 import { extendedMain, ExtendedOptions } from './utils/linkviewWrapper';
 import { parseDepthFile, calculateMeanDepth } from './utils/gciParser';
@@ -25,10 +24,11 @@ function App() {
   const [gciDepthData2, setGciDepthData2] = useState<{ [chromosome: string]: number[] } | undefined>();
   const [auxiliaryLines, setAuxiliaryLines] = useState<number[]>([]);
   const [linkviewFiles, setLinkviewFiles] = useState<UploadFile[]>([]);
+  const [hifiPafFiles, setHifiPafFiles] = useState<UploadFile[]>([]);
+  const [nanoPafFiles, setNanoPafFiles] = useState<UploadFile[]>([]);
   const [linkviewInputContent, setLinkviewInputContent] = useState<string>('');
   const [karyotypeContent, setKaryotypeContent] = useState<string>('');
-  const [chromosomes, setChromosomes] = useState<string[]>([]);
-  const [perChrFiles, setPerChrFiles] = useState<PerChromosomeFiles>({});
+  // 统一输入逻辑后，不再需要按染色体上传
 
   // 处理GCI文件上传
   const handleGciFile1Change = async (fileList: UploadFile[]) => {
@@ -68,20 +68,18 @@ function App() {
   };
 
   const onSubmit = async (values: any) => {
-    // 校验：至少一个depth来源（全局GCI或按染色体的HiFi/Nano depth）
+    // 校验：至少一个 depth 来源（HiFi/Nano 其中之一）
     const hasGlobalDepth = gciFile1.length > 0 || gciFile2.length > 0;
-    const hasPerChrDepth = Object.values(perChrFiles).some(rec => (rec.hifiDepth && rec.hifiDepth.length > 0) || (rec.nanoDepth && rec.nanoDepth.length > 0));
-    if (!hasGlobalDepth && !hasPerChrDepth) {
-      message.error('请至少提供一个 depth 文件（可为全局GCI或按染色体上传）');
+    if (!hasGlobalDepth) {
+      message.error('请至少提供一个 depth 文件（HiFi 或 Nano）');
       return;
     }
-    // 整理对齐输入：合并按染色体上传的PAF与全局上传/粘贴内容
+    // 整理对齐输入：合并用户粘贴与两个 PAF 上传内容
     let combinedAlignments = linkviewInputContent || values.inputContent || '';
-    for (const chr of Object.keys(perChrFiles)) {
-      const rec = perChrFiles[chr];
-      const filesToRead = [rec.hifiPaf?.[0]?.originFileObj, rec.nanoPaf?.[0]?.originFileObj].filter(Boolean) as File[];
-      for (const f of filesToRead) {
-        const text = await (f as File).text();
+    const pafFiles: UploadFile[] = [hifiPafFiles[0], nanoPafFiles[0]].filter(Boolean) as UploadFile[];
+    for (const uf of pafFiles) {
+      if (uf.originFileObj) {
+        const text = await (uf.originFileObj as File).text();
         combinedAlignments += (combinedAlignments ? '\n' : '') + text;
       }
     }
@@ -90,48 +88,21 @@ function App() {
       ...initOptions,
       ...values,
       inputContent: combinedAlignments,
-      karyotypeContent: values.karyotypeContent || '',
+      // 使用已导入的 karyotype 内容（来自组件状态）
+      karyotypeContent: karyotypeContent || '',
       highlightContent: values.highlightContent || '',
       gffContent: values.gffContent || '',
       parameterContent: values.parameterContent || '',
       svg_content_width: (values.svg_width || initOptions.svg_width) * (1 - (values.svg_space || initOptions.svg_space)),
     };
     
-    // 解析并合并按染色体的depth文件
-    let mergedDepth1: { [chromosome: string]: number[] } = gciDepthData ? { ...gciDepthData } : {};
-    let mergedDepth2: { [chromosome: string]: number[] } = gciDepthData2 ? { ...gciDepthData2 } : {};
-    for (const chr of Object.keys(perChrFiles)) {
-      const rec = perChrFiles[chr];
-      if (rec.hifiDepth && rec.hifiDepth[0]?.originFileObj) {
-        try {
-          const file = rec.hifiDepth[0].originFileObj as File;
-          const buf = new Uint8Array(await file.arrayBuffer());
-          const { depths } = await parseDepthFile(buf);
-          // 合并：覆盖同名染色体或追加新染色体
-          Object.assign(mergedDepth1, depths);
-        } catch (e) {
-          console.warn('解析 HiFi depth 失败:', e);
-        }
-      }
-      if (rec.nanoDepth && rec.nanoDepth[0]?.originFileObj) {
-        try {
-          const file = rec.nanoDepth[0].originFileObj as File;
-          const buf = new Uint8Array(await file.arrayBuffer());
-          const { depths } = await parseDepthFile(buf);
-          Object.assign(mergedDepth2, depths);
-        } catch (e) {
-          console.warn('解析 Nano depth 失败:', e);
-        }
-      }
-    }
-
-    // 添加GCI数据（考虑合并结果）
-    if (Object.keys(mergedDepth1).length > 0) {
-      options.gciDepthData = mergedDepth1;
-      const meanDepth1 = calculateMeanDepth(mergedDepth1);
-      if (Object.keys(mergedDepth2).length > 0) {
-        options.gciDepthData2 = mergedDepth2;
-        const meanDepth2 = calculateMeanDepth(mergedDepth2);
+    // 添加 GCI 数据（统一为全局合并文件）
+    if (gciDepthData && Object.keys(gciDepthData).length > 0) {
+      options.gciDepthData = gciDepthData;
+      const meanDepth1 = calculateMeanDepth(gciDepthData);
+      if (gciDepthData2 && Object.keys(gciDepthData2).length > 0) {
+        options.gciDepthData2 = gciDepthData2;
+        const meanDepth2 = calculateMeanDepth(gciDepthData2);
         options.gciMeanDepths = [meanDepth1, meanDepth2];
       } else {
         options.gciMeanDepths = [meanDepth1];
@@ -155,16 +126,9 @@ function App() {
     }
   };
 
-  // 导入 karyotype 后生成按染色体的上传面板
-  const handleImportKaryotype = (chrs: string[], content: string) => {
-    setChromosomes(chrs);
+  // karyotype 内容更新（无需生成染色体列表）
+  const handleImportKaryotype = (_chrs: string[], content: string) => {
     setKaryotypeContent(content);
-    // 初始化每个染色体的文件记录
-    const initial: PerChromosomeFiles = {};
-    chrs.forEach(chr => {
-      initial[chr] = { hifiDepth: [], hifiPaf: [], nanoDepth: [], nanoPaf: [] };
-    });
-    setPerChrFiles(initial);
   };
 
   // 读取 LINKVIEW 上传文件
@@ -177,6 +141,13 @@ function App() {
     } else {
       setLinkviewInputContent('');
     }
+  };
+
+  const handleHifiPafChange = async (fileList: UploadFile[]) => {
+    setHifiPafFiles(fileList);
+  };
+  const handleNanoPafChange = async (fileList: UploadFile[]) => {
+    setNanoPafFiles(fileList);
   };
 
   return (
@@ -201,45 +172,51 @@ function App() {
             size="small"
             layout="vertical"
           >
-            {/* karyotype 输入 */}
+            {/* karyotype 输入（直接接收文本或文件，无需生成染色体列表） */}
             <Form.Item label="karyotype">
-              <KaryotypeInput onImport={handleImportKaryotype} />
+              <KaryotypeInput onImport={handleImportKaryotype} onContentChange={setKaryotypeContent} />
             </Form.Item>
 
-            {/* GCI文件上传（在导入 karyotype 后隐藏） */}
-            {chromosomes.length === 0 && (
-              <Form.Item label="GCI深度数据">
-                <GciFileUpload
-                  fileList1={gciFile1}
-                  fileList2={gciFile2}
-                  onChange1={handleGciFile1Change}
-                  onChange2={handleGciFile2Change}
-                  onRemove1={() => {
-                    setGciFile1([]);
-                    setGciDepthData(undefined);
-                  }}
-                  onRemove2={() => {
-                    setGciFile2([]);
-                    setGciDepthData2(undefined);
-                  }}
-                />
-              </Form.Item>
-            )}
+            {/* 全局深度文件上传（HiFi/Nano） */}
+            <Form.Item label="GCI深度数据">
+              <GciFileUpload
+                fileList1={gciFile1}
+                fileList2={gciFile2}
+                onChange1={handleGciFile1Change}
+                onChange2={handleGciFile2Change}
+                onRemove1={() => {
+                  setGciFile1([]);
+                  setGciDepthData(undefined);
+                }}
+                onRemove2={() => {
+                  setGciFile2([]);
+                  setGciDepthData2(undefined);
+                }}
+              />
+            </Form.Item>
 
-            {/* 按染色体上传面板（导入karyotype后显示） */}
-            {chromosomes.length > 0 && (
-              <Form.Item label="按染色体上传">
-                <ChromosomeUploadPanel
-                  chromosomes={chromosomes}
-                  files={perChrFiles}
-                  onChange={setPerChrFiles}
-                />
-              </Form.Item>
-            )}
-
-            {/* LINKVIEW 比对文件上传 */}
-            <Form.Item label="LINKVIEW比对文件">
+            {/* LINKVIEW 比对文件上传：HiFi 与 Nano 分开入口 */}
+            <Form.Item label="HiFi PAF">
               <LinkviewUpload
+                title="HiFi PAF/比对文件："
+                fileList={hifiPafFiles}
+                onChange={handleHifiPafChange}
+                onRemove={() => setHifiPafFiles([])}
+              />
+            </Form.Item>
+            <Form.Item label="Nano PAF（可选）">
+              <LinkviewUpload
+                title="Nano PAF/比对文件："
+                fileList={nanoPafFiles}
+                onChange={handleNanoPafChange}
+                onRemove={() => setNanoPafFiles([])}
+              />
+            </Form.Item>
+
+            {/* 额外：合并或粘贴的比对数据入口（保持兼容） */}
+            <Form.Item label="额外比对数据（可选）">
+              <LinkviewUpload
+                title="附加比对文件（合并到输入内容）："
                 fileList={linkviewFiles}
                 onChange={handleLinkviewFileChange}
                 onRemove={() => {
@@ -391,7 +368,7 @@ function App() {
               </>
             ) : (
               <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>
-                请先导入 karyotype 并按染色体上传 depth/PAF 或粘贴比对数据，然后点击「生成可视化」
+                请在首页提供 karyotype、HiFi/Nano depth 与 PAF 文件（或粘贴比对数据），然后点击「生成可视化」。
               </div>
             )}
           </div>

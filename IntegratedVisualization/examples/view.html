@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SVG Preview</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      .wrap { display: flex; align-items: stretch; height: 100%; }
+      .wrap object, .wrap img { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- Prefer object for better SVG scaling and interaction -->
+      <object type="image/svg+xml" data="out.svg"> 
+        <img src="out.svg" alt="Generated SVG" />
+      </object>
+    </div>
+  </body>
+  </html>

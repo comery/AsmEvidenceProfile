@@ -49,7 +49,7 @@ const ChromosomeUploadPanel: React.FC<ChromosomeUploadPanelProps> = ({ chromosom
               <Text style={{ alignSelf: 'center' }}>{chr}</Text>
               <div>
                 <Upload
-                  accept=".depth.gz,.txt"
+                  accept=".gz,.depth,.txt,.bed"
                   fileList={record.hifiDepth}
                   beforeUpload={() => false}
                   onChange={({ fileList }) => updateFiles(chr, 'hifiDepth', fileList)}
@@ -77,7 +77,7 @@ const ChromosomeUploadPanel: React.FC<ChromosomeUploadPanelProps> = ({ chromosom
               </div>
               <div>
                 <Upload
-                  accept=".depth.gz,.txt"
+                  accept=".gz,.depth,.txt,.bed"
                   fileList={record.nanoDepth}
                   beforeUpload={() => false}
                   onChange={({ fileList }) => updateFiles(chr, 'nanoDepth', fileList)}

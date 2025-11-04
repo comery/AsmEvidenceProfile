@@ -7,6 +7,7 @@ const { Text } = Typography;
 
 export interface KaryotypeInputProps {
   onImport: (chromosomes: string[], content: string) => void;
+  onContentChange?: (content: string) => void;
 }
 
 function parseKaryotype(text: string): string[] {
@@ -32,7 +33,7 @@ function parseKaryotype(text: string): string[] {
   return uniq;
 }
 
-const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport }) => {
+const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport, onContentChange }) => {
   const [fileText, setFileText] = useState<string>('');
 
   return (
@@ -44,6 +45,7 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport }) => {
           try {
             const text = await file.text();
             setFileText(text);
+            onContentChange?.(text);
           } catch (e) {
             message.error('读取文件失败');
           }
@@ -57,7 +59,10 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport }) => {
       <TextArea
         rows={6}
         value={fileText}
-        onChange={(e) => setFileText(e.target.value)}
+        onChange={(e) => {
+          setFileText(e.target.value);
+          onContentChange?.(e.target.value);
+        }}
         placeholder="粘贴或编辑 karyotype 内容，每行第一列为染色体ID"
         style={{ fontFamily: 'monospace' }}
       />

@@ -1,0 +1,5 @@
+python3 ../static/integrated_montage.py ../IntegratedVisualization/examples/alignments.txt -t 0 -k ../IntegratedVisualization/examples/karyotype.txt --svg_width 1600 --svg_space 0.15 --fai ../IntegratedVisualization/examples/sequence.fa.fai --hifi ../IntegratedVisualization/examples/hifi.normal.depth.txt --nano ../IntegratedVisualization/examples/nano.normal.depth.txt -w 1000 -o ../IntegratedVisualization/examples/integrated_output --chro_axis --chro_axis_density 2
+# 如果有 chrA/chrB 的独立深度文件，可以这样调用： 
+# python3 static/integrated_montage.py <alignments> -t 0 -k <karyotype> --fai <ref.fai> --hifi_a <hifi_chrA.depth> --nano_a <nano_chrA.depth> --hifi_b <hifi_chrB.depth> --nano_b <nano_chrB.depth> -w 1000 -o <out>
+#
+python3 static/integrated_montage.py data/scaffold_38.paf -t 3 -k data/karyotype.txt --svg_width 1600 --svg_space 0.15 --fai data/sequence.fa.fai --hifi_a data/chai.mix.test_hifi.depth --nano_a data/chai.mix.test_nano.depth --hifi_b data/scaffold_38.hifi.depth --nano_b data/scaffold_38.nano.depth -w 10000 -o data/integrated_output --chro_axis --chro_axis_density 2 --scale_y_ratio 0.05 --max-depth-ratio 3 --panel_gap 100

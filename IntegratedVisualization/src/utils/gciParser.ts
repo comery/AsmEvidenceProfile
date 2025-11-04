@@ -19,13 +19,14 @@ export interface ChromosomeLength {
  * @param gzippedData 压缩的二进制数据
  * @returns 解析后的深度数据字典
  */
-export async function parseDepthFile(gzippedData: Uint8Array): Promise<{
+export async function parseDepthFile(inputData: Uint8Array): Promise<{
   depths: GciDepthData;
   lengths: ChromosomeLength;
 }> {
-  // 解压数据
-  const decompressed = ungzip(gzippedData);
-  const text = new TextDecoder('utf-8').decode(decompressed);
+  // 自动检测是否为gzip：魔数 0x1f 0x8b
+  const isGzip = inputData.length >= 2 && inputData[0] === 0x1f && inputData[1] === 0x8b;
+  const raw = isGzip ? ungzip(inputData) : inputData;
+  const text = new TextDecoder('utf-8').decode(raw);
   
   const depths: GciDepthData = {};
   const lengths: ChromosomeLength = {};
@@ -45,9 +46,12 @@ export async function parseDepthFile(gzippedData: Uint8Array): Promise<{
       currentChromosome = trimmed.slice(1); // 移除 '>' 前缀
       depths[currentChromosome] = [];
     } else {
-      // 深度值
+      // 支持两种行格式：
+      // 1) 单值深度："12"
+      // 2) 以空格/制表符分隔，第一列为深度："12\t..."（兼容某些导出）
       if (currentChromosome) {
-        const depth = parseInt(trimmed, 10);
+        const parts = trimmed.split(/\s+/);
+        const depth = parseInt(parts[0], 10);
         if (!isNaN(depth)) {
           depths[currentChromosome].push(depth);
         }

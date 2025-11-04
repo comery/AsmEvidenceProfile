@@ -27,14 +27,14 @@ const GciFileUpload: React.FC<GciFileUploadProps> = ({
       <div>
         <Text strong>GCI深度文件 (HiFi):</Text>
         <Upload
-          accept=".gz"
+          accept=".gz,.depth,.txt,.bed"
           fileList={fileList1}
           onChange={({ fileList }) => onChange1?.(fileList)}
           beforeUpload={() => false}
           maxCount={1}
         >
           <Button icon={<UploadOutlined />} size="small" style={{ marginLeft: 8 }}>
-            上传 .depth.gz 文件
+            上传 depth 文件（.gz/.depth/.bed/.txt）
           </Button>
         </Upload>
         {fileList1.length > 0 && (
@@ -53,14 +53,14 @@ const GciFileUpload: React.FC<GciFileUploadProps> = ({
       <div>
         <Text strong>GCI深度文件 (Nano，可选):</Text>
         <Upload
-          accept=".gz"
+          accept=".gz,.depth,.txt,.bed"
           fileList={fileList2}
           onChange={({ fileList }) => onChange2?.(fileList)}
           beforeUpload={() => false}
           maxCount={1}
         >
           <Button icon={<UploadOutlined />} size="small" style={{ marginLeft: 8 }}>
-            上传 .depth.gz 文件
+            上传 depth 文件（.gz/.depth/.bed/.txt）
           </Button>
         </Upload>
         {fileList2.length > 0 && (
