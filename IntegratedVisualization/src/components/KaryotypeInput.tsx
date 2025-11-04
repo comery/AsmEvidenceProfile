@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Button, Space, Typography, Input, message } from 'antd';
 import { UploadOutlined, ImportOutlined, ClearOutlined } from '@ant-design/icons';
+import './UploadComponents.css';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -37,8 +38,7 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport, onContentChan
   const [fileText, setFileText] = useState<string>('');
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="small">
-      <Text strong>karyotype.txt：</Text>
+    <Space direction="vertical" style={{ width: '100%' }} size="middle">
       <Upload
         accept=".txt,.tsv,.csv"
         beforeUpload={async (file) => {
@@ -54,7 +54,10 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport, onContentChan
         maxCount={1}
         showUploadList={false}
       >
-        <Button icon={<UploadOutlined />} size="small">上传 karyotype.txt</Button>
+        <div className="upload-button">
+          <UploadOutlined style={{ fontSize: 16 }} />
+          <span>上传 karyotype.txt</span>
+        </div>
       </Upload>
       <TextArea
         rows={6}
@@ -64,13 +67,12 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport, onContentChan
           onContentChange?.(e.target.value);
         }}
         placeholder="粘贴或编辑 karyotype 内容，每行第一列为染色体ID"
-        style={{ fontFamily: 'monospace' }}
+        className="rounded-textarea"
       />
-      <Space>
+      <div className="input-group">
         <Button
-          type="primary"
+          className="rounded-button rounded-button-primary rounded-button-small"
           icon={<ImportOutlined />}
-          size="small"
           onClick={() => {
             const chrs = parseKaryotype(fileText || '');
             if (chrs.length === 0) {
@@ -79,16 +81,19 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport, onContentChan
             }
             onImport(chrs, fileText);
           }}
-        >导入</Button>
+        >
+          导入
+        </Button>
         <Button
+          className="rounded-button rounded-button-secondary rounded-button-small"
           icon={<ClearOutlined />}
-          size="small"
           onClick={() => setFileText('')}
-        >清空</Button>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          解析规则：按行取第一列作为染色体ID，忽略空行与以#开头的注释。
-        </Text>
-      </Space>
+          title="清空"
+        />
+      </div>
+      <div className="help-text">
+        解析规则：按行取第一列作为染色体ID，忽略空行与以#开头的注释。
+      </div>
     </Space>
   );
 };

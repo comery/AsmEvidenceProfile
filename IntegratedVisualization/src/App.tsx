@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import './App.css';
-import { PageHeader, Row, Col, Alert, Form, Input, Button, Collapse, InputNumber, Space, Divider, message } from 'antd';
-import { GithubOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PageHeader, Alert, Form, Input, Button, Collapse, InputNumber, Space, message, Select, Spin } from 'antd';
+import { GithubOutlined, DownloadOutlined, LoadingOutlined } from '@ant-design/icons';
 import GciFileUpload from './components/GciFileUpload';
+import GciFileUploadPerChr from './components/GciFileUploadPerChr';
 import LinkviewUpload from './components/LinkviewUpload';
 import KaryotypeInput from './components/KaryotypeInput';
 import AuxiliaryLinesManager from './components/AuxiliaryLinesManager';
+import InteractiveViewer from './components/InteractiveViewer';
+import JBrowseViewer from './components/JBrowseViewer';
+import SidebarResizer from './components/SidebarResizer';
 import { extendedMain, ExtendedOptions } from './utils/linkviewWrapper';
-import { parseDepthFile, calculateMeanDepth } from './utils/gciParser';
+import { parseDepthFile, calculateMeanDepth, GciDepthData } from './utils/gciParser';
 import initOptions from './utils/initOptions';
 import type { UploadFile } from 'antd/es/upload/interface';
 
@@ -17,18 +21,52 @@ const { Panel } = Collapse;
 function App() {
   const [svg, setSvg] = useState('');
   const [errMsg, setErrMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [form] = Form.useForm();
   const [gciFile1, setGciFile1] = useState<UploadFile[]>([]);
   const [gciFile2, setGciFile2] = useState<UploadFile[]>([]);
   const [gciDepthData, setGciDepthData] = useState<{ [chromosome: string]: number[] } | undefined>();
   const [gciDepthData2, setGciDepthData2] = useState<{ [chromosome: string]: number[] } | undefined>();
+  
+  // 按染色体分别上传的文件
+  const [hifiAFile, setHifiAFile] = useState<UploadFile[]>([]);
+  const [ontAFile, setOntAFile] = useState<UploadFile[]>([]);
+  const [hifiBFile, setHifiBFile] = useState<UploadFile[]>([]);
+  const [ontBFile, setOntBFile] = useState<UploadFile[]>([]);
+  const [hifiADepthData, setHifiADepthData] = useState<GciDepthData | undefined>();
+  const [ontADepthData, setOntADepthData] = useState<GciDepthData | undefined>();
+  const [hifiBDepthData, setHifiBDepthData] = useState<GciDepthData | undefined>();
+  const [ontBDepthData, setOntBDepthData] = useState<GciDepthData | undefined>();
+  
+  const [usePerChrUpload, setUsePerChrUpload] = useState<boolean>(false);
   const [auxiliaryLines, setAuxiliaryLines] = useState<number[]>([]);
   const [linkviewFiles, setLinkviewFiles] = useState<UploadFile[]>([]);
   const [hifiPafFiles, setHifiPafFiles] = useState<UploadFile[]>([]);
   const [nanoPafFiles, setNanoPafFiles] = useState<UploadFile[]>([]);
   const [linkviewInputContent, setLinkviewInputContent] = useState<string>('');
   const [karyotypeContent, setKaryotypeContent] = useState<string>('');
-  // 统一输入逻辑后，不再需要按染色体上传
+  const [useInteractiveViewer, setUseInteractiveViewer] = useState<boolean>(true);
+  const [useJBrowseViewer, setUseJBrowseViewer] = useState<boolean>(false);
+  const [currentZoom, setCurrentZoom] = useState<number>(1);
+  const [chromosomes, setChromosomes] = useState<Array<{ name: string; length: number }>>([]);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(320);
+
+  // 更新染色体信息（从深度数据中提取）
+  const updateChromosomes = (depths1?: { [chromosome: string]: number[] }, depths2?: { [chromosome: string]: number[] }) => {
+    const chrSet = new Set<string>();
+    if (depths1) Object.keys(depths1).forEach(k => chrSet.add(k));
+    if (depths2) Object.keys(depths2).forEach(k => chrSet.add(k));
+    
+    const chrList = Array.from(chrSet).map(name => ({
+      name,
+      length: Math.max(
+        depths1?.[name]?.length || 0,
+        depths2?.[name]?.length || 0
+      )
+    }));
+    
+    setChromosomes(chrList);
+  };
 
   // 处理GCI文件上传
   const handleGciFile1Change = async (fileList: UploadFile[]) => {
@@ -40,12 +78,14 @@ function App() {
         const uint8Array = new Uint8Array(arrayBuffer);
         const { depths } = await parseDepthFile(uint8Array);
         setGciDepthData(depths);
+        updateChromosomes(depths, gciDepthData2);
       } catch (error) {
         console.error('Error parsing GCI file 1:', error);
         setErrMsg(`Error parsing GCI file 1: ${(error as Error).message}`);
       }
     } else {
       setGciDepthData(undefined);
+      updateChromosomes(undefined, gciDepthData2);
     }
   };
 
@@ -58,71 +98,243 @@ function App() {
         const uint8Array = new Uint8Array(arrayBuffer);
         const { depths } = await parseDepthFile(uint8Array);
         setGciDepthData2(depths);
+        updateChromosomes(gciDepthData, depths);
       } catch (error) {
         console.error('Error parsing GCI file 2:', error);
         setErrMsg(`Error parsing GCI file 2: ${(error as Error).message}`);
       }
     } else {
       setGciDepthData2(undefined);
+      updateChromosomes(gciDepthData, undefined);
+    }
+  };
+
+  // 处理按染色体分别上传的文件
+  const handleHifiAChange = async (fileList: UploadFile[]) => {
+    setHifiAFile(fileList);
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      try {
+        const file = fileList[0].originFileObj;
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const { depths } = await parseDepthFile(uint8Array);
+        setHifiADepthData(depths);
+      } catch (error) {
+        console.error('Error parsing HiFi A file:', error);
+        message.error(`解析 HiFi A 文件失败: ${(error as Error).message}`);
+      }
+    } else {
+      setHifiADepthData(undefined);
+    }
+  };
+
+  const handleOntAChange = async (fileList: UploadFile[]) => {
+    setOntAFile(fileList);
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      try {
+        const file = fileList[0].originFileObj;
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const { depths } = await parseDepthFile(uint8Array);
+        setOntADepthData(depths);
+      } catch (error) {
+        console.error('Error parsing ONT A file:', error);
+        message.error(`解析 ONT A 文件失败: ${(error as Error).message}`);
+      }
+    } else {
+      setOntADepthData(undefined);
+    }
+  };
+
+  const handleHifiBChange = async (fileList: UploadFile[]) => {
+    setHifiBFile(fileList);
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      try {
+        const file = fileList[0].originFileObj;
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const { depths } = await parseDepthFile(uint8Array);
+        setHifiBDepthData(depths);
+      } catch (error) {
+        console.error('Error parsing HiFi B file:', error);
+        message.error(`解析 HiFi B 文件失败: ${(error as Error).message}`);
+      }
+    } else {
+      setHifiBDepthData(undefined);
+    }
+  };
+
+  const handleOntBChange = async (fileList: UploadFile[]) => {
+    setOntBFile(fileList);
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      try {
+        const file = fileList[0].originFileObj;
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const { depths } = await parseDepthFile(uint8Array);
+        setOntBDepthData(depths);
+      } catch (error) {
+        console.error('Error parsing ONT B file:', error);
+        message.error(`解析 ONT B 文件失败: ${(error as Error).message}`);
+      }
+    } else {
+      setOntBDepthData(undefined);
     }
   };
 
   const onSubmit = async (values: any) => {
-    // 校验：至少一个 depth 来源（HiFi/Nano 其中之一）
-    const hasGlobalDepth = gciFile1.length > 0 || gciFile2.length > 0;
-    if (!hasGlobalDepth) {
+    console.log('onSubmit called', { values, usePerChrUpload, hifiAFile, ontAFile, hifiBFile, ontBFile });
+    
+    // 校验：至少一个 depth 来源
+    const hasGlobalDepth = !usePerChrUpload && (gciFile1.length > 0 || gciFile2.length > 0);
+    const hasPerChrDepth = usePerChrUpload && (
+      hifiAFile.length > 0 || ontAFile.length > 0 || 
+      hifiBFile.length > 0 || ontBFile.length > 0
+    );
+    
+    console.log('Depth check:', { hasGlobalDepth, hasPerChrDepth, usePerChrUpload });
+    
+    if (!hasGlobalDepth && !hasPerChrDepth) {
       message.error('请至少提供一个 depth 文件（HiFi 或 Nano）');
       return;
     }
-    // 整理对齐输入：合并用户粘贴与两个 PAF 上传内容
-    let combinedAlignments = linkviewInputContent || values.inputContent || '';
-    const pafFiles: UploadFile[] = [hifiPafFiles[0], nanoPafFiles[0]].filter(Boolean) as UploadFile[];
-    for (const uf of pafFiles) {
-      if (uf.originFileObj) {
-        const text = await (uf.originFileObj as File).text();
+    
+    setIsLoading(true);
+    setErrMsg('');
+    
+    console.log('Starting visualization generation...');
+    
+    try {
+      // 整理对齐输入：合并用户粘贴、两个 PAF 上传内容，以及额外比对文件
+      let combinedAlignments = linkviewInputContent || values.inputContent || '';
+      
+      // 合并 HiFi 和 Nano PAF 文件
+      const pafFiles: UploadFile[] = [hifiPafFiles[0], nanoPafFiles[0]].filter(Boolean) as UploadFile[];
+      for (const uf of pafFiles) {
+        if (uf.originFileObj) {
+          const text = await (uf.originFileObj as File).text();
+          combinedAlignments += (combinedAlignments ? '\n' : '') + text;
+        }
+      }
+      
+      // 合并额外比对文件（如 scaffold_38.paf）
+      if (linkviewFiles.length > 0 && linkviewFiles[0].originFileObj) {
+        const file = linkviewFiles[0].originFileObj as File;
+        const text = await file.text();
         combinedAlignments += (combinedAlignments ? '\n' : '') + text;
       }
-    }
-
-    const options: ExtendedOptions = {
-      ...initOptions,
-      ...values,
-      inputContent: combinedAlignments,
-      // 使用已导入的 karyotype 内容（来自组件状态）
-      karyotypeContent: karyotypeContent || '',
-      highlightContent: values.highlightContent || '',
-      gffContent: values.gffContent || '',
-      parameterContent: values.parameterContent || '',
-      svg_content_width: (values.svg_width || initOptions.svg_width) * (1 - (values.svg_space || initOptions.svg_space)),
-    };
-    
-    // 添加 GCI 数据（统一为全局合并文件）
-    if (gciDepthData && Object.keys(gciDepthData).length > 0) {
-      options.gciDepthData = gciDepthData;
-      const meanDepth1 = calculateMeanDepth(gciDepthData);
-      if (gciDepthData2 && Object.keys(gciDepthData2).length > 0) {
-        options.gciDepthData2 = gciDepthData2;
-        const meanDepth2 = calculateMeanDepth(gciDepthData2);
-        options.gciMeanDepths = [meanDepth1, meanDepth2];
-      } else {
-        options.gciMeanDepths = [meanDepth1];
+      
+      console.log('Combined alignments length:', combinedAlignments.length);
+      
+      if (!combinedAlignments.trim()) {
+        message.warning('没有比对数据输入，请上传比对文件或输入比对数据');
       }
-    }
-    
-    // 添加辅助线
-    if (auxiliaryLines.length > 0) {
-      options.auxiliaryLines = auxiliaryLines;
-    }
-    
-    console.log('options', options);
-    try {
+
+      const options: ExtendedOptions = {
+        ...initOptions,
+        ...values,
+        inputContent: combinedAlignments,
+        // 使用已导入的 karyotype 内容（来自组件状态）
+        karyotypeContent: karyotypeContent || '',
+        highlightContent: values.highlightContent || '',
+        gffContent: values.gffContent || '',
+        parameterContent: values.parameterContent || '',
+        svg_content_width: (values.svg_width || initOptions.svg_width) * (1 - (values.svg_space || initOptions.svg_space)),
+      };
+      
+      // 添加 GCI 数据
+      if (usePerChrUpload) {
+        // 按染色体分别上传模式：合并数据（使用浅拷贝避免循环引用）
+        const mergedHifi: GciDepthData = {};
+        const mergedOnt: GciDepthData = {};
+        
+        // 合并染色体A的数据（浅拷贝数组引用）
+        if (hifiADepthData) {
+          for (const chr in hifiADepthData) {
+            mergedHifi[chr] = hifiADepthData[chr];
+          }
+        }
+        if (ontADepthData) {
+          for (const chr in ontADepthData) {
+            mergedOnt[chr] = ontADepthData[chr];
+          }
+        }
+        
+        // 合并染色体B的数据
+        if (hifiBDepthData) {
+          for (const chr in hifiBDepthData) {
+            mergedHifi[chr] = hifiBDepthData[chr];
+          }
+        }
+        if (ontBDepthData) {
+          for (const chr in ontBDepthData) {
+            mergedOnt[chr] = ontBDepthData[chr];
+          }
+        }
+        
+        if (Object.keys(mergedHifi).length > 0) {
+          options.gciDepthData = mergedHifi;
+        }
+        if (Object.keys(mergedOnt).length > 0) {
+          options.gciDepthData2 = mergedOnt;
+        }
+        
+        if (Object.keys(mergedHifi).length > 0 || Object.keys(mergedOnt).length > 0) {
+          const meanDepths: number[] = [];
+          if (Object.keys(mergedHifi).length > 0) {
+            meanDepths.push(calculateMeanDepth(mergedHifi));
+          }
+          if (Object.keys(mergedOnt).length > 0) {
+            meanDepths.push(calculateMeanDepth(mergedOnt));
+          }
+          options.gciMeanDepths = meanDepths;
+        }
+      } else {
+        // 全局文件模式
+        if (gciDepthData && Object.keys(gciDepthData).length > 0) {
+          options.gciDepthData = gciDepthData;
+          const meanDepth1 = calculateMeanDepth(gciDepthData);
+          if (gciDepthData2 && Object.keys(gciDepthData2).length > 0) {
+            options.gciDepthData2 = gciDepthData2;
+            const meanDepth2 = calculateMeanDepth(gciDepthData2);
+            options.gciMeanDepths = [meanDepth1, meanDepth2];
+          } else {
+            options.gciMeanDepths = [meanDepth1];
+          }
+        }
+      }
+      
+      // 添加辅助线
+      if (auxiliaryLines.length > 0) {
+        options.auxiliaryLines = auxiliaryLines;
+      }
+      
+      console.log('Calling extendedMain with options:', {
+        ...options,
+        gciDepthData: options.gciDepthData ? Object.keys(options.gciDepthData) : undefined,
+        gciDepthData2: options.gciDepthData2 ? Object.keys(options.gciDepthData2) : undefined,
+        inputContentLength: options.inputContent?.length || 0,
+      });
+      
       const svg = await extendedMain(options) || '';
+      
+      console.log('extendedMain returned SVG length:', svg.length);
+      
+      if (!svg) {
+        throw new Error('生成的SVG为空，请检查输入数据');
+      }
+      
       setSvg(svg);
       setErrMsg('');
+      console.log('Visualization generated successfully');
     } catch(error) {
-      console.log((error as Error).message);
+      console.error('Error in onSubmit:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       setSvg('');
-      setErrMsg((error as Error).message);
+      setErrMsg(errorMessage);
+      message.error(`生成可视化失败: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -162,9 +374,10 @@ function App() {
         </p>
       </PageHeader>
 
-      {/* 顶部参数区（紧凑布局） */}
-      <Row className="main-container" gutter={[12, 12]}>
-        <Col span={22} offset={1}>
+      {/* 主布局：侧边栏 + 主内容区 */}
+      <div className="main-layout">
+        {/* 侧边栏：参数配置 */}
+        <div className="sidebar" style={{ width: `${sidebarWidth}px` }}>
           <Form
             form={form}
             onFinish={onSubmit}
@@ -172,179 +385,266 @@ function App() {
             size="small"
             layout="vertical"
           >
-            {/* karyotype 输入（直接接收文本或文件，无需生成染色体列表） */}
-            <Form.Item label="karyotype">
-              <KaryotypeInput onImport={handleImportKaryotype} onContentChange={setKaryotypeContent} />
-            </Form.Item>
+            {/* 数据输入区域 */}
+            <div className="sidebar-section">
+              <div className="sidebar-title">数据输入</div>
+              <Form.Item label="karyotype">
+                <KaryotypeInput onImport={handleImportKaryotype} onContentChange={setKaryotypeContent} />
+              </Form.Item>
 
-            {/* 全局深度文件上传（HiFi/Nano） */}
-            <Form.Item label="GCI深度数据">
-              <GciFileUpload
-                fileList1={gciFile1}
-                fileList2={gciFile2}
-                onChange1={handleGciFile1Change}
-                onChange2={handleGciFile2Change}
-                onRemove1={() => {
-                  setGciFile1([]);
-                  setGciDepthData(undefined);
-                }}
-                onRemove2={() => {
-                  setGciFile2([]);
-                  setGciDepthData2(undefined);
-                }}
-              />
-            </Form.Item>
+              <Form.Item label="GCI深度数据">
+                <Space direction="vertical" style={{ width: '100%' }} size="small">
+                  <Select
+                    value={usePerChrUpload ? 'perChr' : 'global'}
+                    onChange={(value) => setUsePerChrUpload(value === 'perChr')}
+                    style={{ width: '100%' }}
+                  >
+                    <Select.Option value="global">全局文件（所有染色体）</Select.Option>
+                    <Select.Option value="perChr">按染色体分别上传</Select.Option>
+                  </Select>
+                  
+                  {usePerChrUpload ? (
+                    <GciFileUploadPerChr
+                      hifiA={hifiAFile}
+                      ontA={ontAFile}
+                      hifiB={hifiBFile}
+                      ontB={ontBFile}
+                      onChangeHifiA={handleHifiAChange}
+                      onChangeOntA={handleOntAChange}
+                      onChangeHifiB={handleHifiBChange}
+                      onChangeOntB={handleOntBChange}
+                      onRemoveHifiA={() => {
+                        setHifiAFile([]);
+                        setHifiADepthData(undefined);
+                      }}
+                      onRemoveOntA={() => {
+                        setOntAFile([]);
+                        setOntADepthData(undefined);
+                      }}
+                      onRemoveHifiB={() => {
+                        setHifiBFile([]);
+                        setHifiBDepthData(undefined);
+                      }}
+                      onRemoveOntB={() => {
+                        setOntBFile([]);
+                        setOntBDepthData(undefined);
+                      }}
+                    />
+                  ) : (
+                    <GciFileUpload
+                      fileList1={gciFile1}
+                      fileList2={gciFile2}
+                      onChange1={handleGciFile1Change}
+                      onChange2={handleGciFile2Change}
+                      onRemove1={() => {
+                        setGciFile1([]);
+                        setGciDepthData(undefined);
+                      }}
+                      onRemove2={() => {
+                        setGciFile2([]);
+                        setGciDepthData2(undefined);
+                      }}
+                    />
+                  )}
+                </Space>
+              </Form.Item>
 
-            {/* LINKVIEW 比对文件上传：HiFi 与 Nano 分开入口 */}
-            <Form.Item label="HiFi PAF">
-              <LinkviewUpload
-                title="HiFi PAF/比对文件："
-                fileList={hifiPafFiles}
-                onChange={handleHifiPafChange}
-                onRemove={() => setHifiPafFiles([])}
-              />
-            </Form.Item>
-            <Form.Item label="Nano PAF（可选）">
-              <LinkviewUpload
-                title="Nano PAF/比对文件："
-                fileList={nanoPafFiles}
-                onChange={handleNanoPafChange}
-                onRemove={() => setNanoPafFiles([])}
-              />
-            </Form.Item>
+              <Collapse ghost>
+                <Panel header="PAF比对文件（可选）" key="paf">
+                  <Form.Item label="HiFi PAF">
+                    <LinkviewUpload
+                      fileList={hifiPafFiles}
+                      onChange={handleHifiPafChange}
+                      onRemove={() => setHifiPafFiles([])}
+                    />
+                  </Form.Item>
+                  
+                  <Form.Item label="Nano PAF">
+                    <LinkviewUpload
+                      fileList={nanoPafFiles}
+                      onChange={handleNanoPafChange}
+                      onRemove={() => setNanoPafFiles([])}
+                    />
+                  </Form.Item>
+                </Panel>
+              </Collapse>
 
-            {/* 额外：合并或粘贴的比对数据入口（保持兼容） */}
-            <Form.Item label="额外比对数据（可选）">
-              <LinkviewUpload
-                title="附加比对文件（合并到输入内容）："
-                fileList={linkviewFiles}
-                onChange={handleLinkviewFileChange}
-                onRemove={() => {
-                  setLinkviewFiles([]);
-                  setLinkviewInputContent('');
-                }}
-              />
-            </Form.Item>
+              <Form.Item label="额外比对数据（可选）">
+                <LinkviewUpload
+                  fileList={linkviewFiles}
+                  onChange={handleLinkviewFileChange}
+                  onRemove={() => {
+                    setLinkviewFiles([]);
+                    setLinkviewInputContent('');
+                  }}
+                />
+              </Form.Item>
+            </div>
 
-            {/* 辅助线管理 */}
-            <Form.Item label="辅助线">
-              <AuxiliaryLinesManager
-                lines={auxiliaryLines}
-                onChange={setAuxiliaryLines}
-              />
-            </Form.Item>
+            {/* 可视化设置 */}
+            <div className="sidebar-section">
+              <div className="sidebar-title">可视化设置</div>
+              <Collapse ghost>
+                <Panel header="显示选项" key="1">
+                  <Form.Item
+                    name="svg_width"
+                    label="分辨率宽度 (px)"
+                    initialValue={initOptions.svg_width}
+                  >
+                    <InputNumber
+                      min={100}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="svg_height"
+                    label="基础高度 (px)"
+                    initialValue={initOptions.svg_height}
+                  >
+                    <InputNumber
+                      min={100}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="svg_space"
+                    label="左右边距比例"
+                    initialValue={initOptions.svg_space}
+                  >
+                    <InputNumber
+                      min={0}
+                      max={1}
+                      step={0.1}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Panel>
+                
+                <Panel header="GCI选项" key="2">
+                  <Form.Item
+                    name="depth_height"
+                    label="深度面板高度 (px)"
+                    initialValue={initOptions.depth_height}
+                  >
+                    <InputNumber
+                      min={50}
+                      max={500}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="window_size"
+                    label="滑动窗口大小 (bp)"
+                    initialValue={initOptions.window_size}
+                  >
+                    <InputNumber
+                      min={1}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="max_depth_ratio"
+                    label="最大深度比例"
+                    initialValue={initOptions.max_depth_ratio}
+                  >
+                    <InputNumber
+                      min={1}
+                      max={10}
+                      step={0.1}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="min_safe_depth"
+                    label="最小安全深度"
+                    initialValue={initOptions.min_safe_depth}
+                  >
+                    <InputNumber
+                      min={1}
+                      step={1}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="top_margin"
+                    label="顶部边距 (px)"
+                    initialValue={initOptions.top_margin}
+                  >
+                    <InputNumber
+                      min={0}
+                      step={10}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Panel>
+              </Collapse>
+            </div>
 
-            {/* 可选：直接粘贴比对数据 */}
-            <Collapse ghost>
-              <Panel header="手动粘贴比对数据（可选）" key="paste">
-                <Form.Item name="inputContent" initialValue={initOptions.inputContent}>
-                  <TextArea rows={6} wrap="off" placeholder="每行一个比对关系" style={{ fontFamily: 'monospace' }} />
-                </Form.Item>
-              </Panel>
-            </Collapse>
+            {/* 辅助功能 */}
+            <div className="sidebar-section">
+              <div className="sidebar-title">辅助功能</div>
+              <Form.Item label="辅助线">
+                <AuxiliaryLinesManager
+                  lines={auxiliaryLines}
+                  onChange={setAuxiliaryLines}
+                />
+              </Form.Item>
+              <Collapse ghost>
+                <Panel header="手动粘贴比对数据" key="paste">
+                  <Form.Item name="inputContent" initialValue={initOptions.inputContent}>
+                    <TextArea rows={4} wrap="off" placeholder="每行一个比对关系" style={{ fontFamily: 'monospace', fontSize: '12px' }} />
+                  </Form.Item>
+                </Panel>
+              </Collapse>
+            </div>
 
-            {/* 折叠面板 */}
-            <Collapse ghost>
-              <Panel header="显示选项" key="1">
-                <Form.Item
-                  name="svg_width"
-                  label="分辨率宽度 (px)"
-                  initialValue={initOptions.svg_width}
-                >
-                  <InputNumber
-                    min={100}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="svg_height"
-                  label="基础高度 (px)"
-                  initialValue={initOptions.svg_height}
-                >
-                  <InputNumber
-                    min={100}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="svg_space"
-                  label="左右边距比例"
-                  initialValue={initOptions.svg_space}
-                >
-                  <InputNumber
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-              </Panel>
-              
-              <Panel header="GCI选项" key="2">
-                <Form.Item
-                  name="gciDepthHeight"
-                  label="GCI面板高度 (px)"
-                  initialValue={initOptions.gciDepthHeight}
-                >
-                  <InputNumber
-                    min={50}
-                    max={500}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="gciWindowSize"
-                  label="滑动窗口大小 (bp)"
-                  initialValue={initOptions.gciWindowSize}
-                >
-                  <InputNumber
-                    min={1}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="gciDepthMin"
-                  label="最小深度倍数"
-                  initialValue={initOptions.gciDepthMin}
-                >
-                  <InputNumber
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name="gciDepthMax"
-                  label="最大深度倍数"
-                  initialValue={initOptions.gciDepthMax}
-                >
-                  <InputNumber
-                    min={1}
-                    max={10}
-                    step={0.1}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-              </Panel>
-            </Collapse>
-
-            <Form.Item>
-              <Button type="primary" htmlType="submit" style={{ width: '100%' }}>
-                生成可视化
+            {/* 生成按钮 */}
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                style={{ width: '100%', height: '42px', fontSize: '16px' }}
+                loading={isLoading}
+                disabled={isLoading}
+              >
+                {isLoading ? '正在生成可视化...' : '生成可视化'}
               </Button>
             </Form.Item>
           </Form>
-        </Col>
-      </Row>
+        </div>
 
-      <Divider style={{ margin: '8px 0' }} />
+        {/* 分隔条：可拖拽调整宽度 */}
+        <SidebarResizer
+          onResize={setSidebarWidth}
+          initialWidth={320}
+          minWidth={200}
+          maxWidth={600}
+        />
 
-      {/* 底部可视化区 */}
-      <Row className="main-container" gutter={[12, 12]}>
-        <Col span={22} offset={1}>
+        {/* 主内容区：可视化结果 */}
+        <div className="main-content">
           <div className="display-container">
-            {errMsg ? (
+            {isLoading ? (
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                minHeight: '400px',
+                gap: 16
+              }}>
+                <Spin 
+                  indicator={<LoadingOutlined style={{ fontSize: 48, color: '#667eea' }} spin />} 
+                  size="large"
+                />
+                <div style={{ fontSize: 16, color: '#595959' }}>
+                  正在处理文件并生成可视化，请稍候...
+                </div>
+                <div style={{ fontSize: 13, color: '#8c8c8c' }}>
+                  大文件可能需要较长时间，请耐心等待
+                </div>
+              </div>
+            ) : errMsg ? (
               <Alert
                 message="错误"
                 description={<code style={{ whiteSpace: 'pre-wrap' }}>{errMsg}</code>}
@@ -354,26 +654,81 @@ function App() {
               />
             ) : svg ? (
               <>
-                <a
-                  href={`data:text/plain;charset=utf-8,${svg.replaceAll('#', '%23')}`}
-                  download="visualization.svg"
-                  className="download"
-                >
-                  <DownloadOutlined /> 下载SVG
-                </a>
-                <div
-                  className="svg-container"
-                  dangerouslySetInnerHTML={{ __html: svg }}
-                />
+                <div className="control-bar">
+                  <Space>
+                    <span style={{ fontWeight: 500, color: '#595959' }}>查看模式:</span>
+                    <Select
+                      value={useJBrowseViewer ? 'jbrowse' : (useInteractiveViewer ? 'interactive' : 'static')}
+                      onChange={(value) => {
+                        if (value === 'jbrowse') {
+                          setUseJBrowseViewer(true);
+                          setUseInteractiveViewer(false);
+                        } else if (value === 'interactive') {
+                          setUseJBrowseViewer(false);
+                          setUseInteractiveViewer(true);
+                        } else {
+                          setUseJBrowseViewer(false);
+                          setUseInteractiveViewer(false);
+                        }
+                      }}
+                      style={{ width: 150 }}
+                    >
+                      <Select.Option value="interactive">交互式 SVG</Select.Option>
+                      <Select.Option value="jbrowse">JBrowse 风格</Select.Option>
+                      <Select.Option value="static">静态 SVG</Select.Option>
+                    </Select>
+                  </Space>
+                  <a
+                    href={`data:text/plain;charset=utf-8,${svg.replaceAll('#', '%23')}`}
+                    download="visualization.svg"
+                    className="download-btn"
+                  >
+                    <DownloadOutlined /> 下载SVG
+                  </a>
+                </div>
+                {useJBrowseViewer ? (
+                  <div style={{ height: '600px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
+                    <JBrowseViewer
+                      depthData={gciDepthData}
+                      depthData2={gciDepthData2}
+                      alignmentData={linkviewInputContent}
+                      chromosomes={chromosomes}
+                    />
+                  </div>
+                ) : useInteractiveViewer ? (
+                  <div style={{ height: '600px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
+                    <InteractiveViewer
+                      svgContent={svg}
+                      onZoomChange={setCurrentZoom}
+                      onPanChange={(x, y) => {
+                        // 可以在这里处理平移变化
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="svg-container"
+                    dangerouslySetInnerHTML={{ __html: svg }}
+                  />
+                )}
               </>
             ) : (
-              <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>
-                请在首页提供 karyotype、HiFi/Nano depth 与 PAF 文件（或粘贴比对数据），然后点击「生成可视化」。
+              <div className="empty-state">
+                <div className="empty-state-icon">📊</div>
+                <div className="empty-state-text">
+                  <p style={{ marginBottom: 8, fontSize: '18px', fontWeight: 500, color: '#595959' }}>
+                    准备开始可视化
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    请在左侧侧边栏上传 karyotype、HiFi/Nano depth 与 PAF 文件<br />
+                    （或粘贴比对数据），然后点击「生成可视化」按钮。
+                  </p>
+                </div>
               </div>
             )}
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </div>
   );
 }

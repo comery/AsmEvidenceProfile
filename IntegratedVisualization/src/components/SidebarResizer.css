@@ -1,0 +1,32 @@
+.sidebar-resizer {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 10;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.dragging {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.resizer-handle {
+  position: absolute;
+  left: -2px;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.sidebar-resizer.dragging {
+  cursor: col-resize;
+}
+
+.sidebar-resizer.dragging * {
+  cursor: col-resize !important;
+}
+

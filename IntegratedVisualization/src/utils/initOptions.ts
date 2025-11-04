@@ -1,5 +1,6 @@
-import { Options } from '@linkview/linkview-core';
+// import { Options } from '@linkview/linkview-core';
 import { ExtendedOptions } from './linkviewWrapper';
+type Options = any;
 
 const initOptions: ExtendedOptions = {
   inputContent: '',
@@ -35,13 +36,23 @@ const initOptions: ExtendedOptions = {
   },
   style: 'classic',
   
-  // GCI相关默认值
-  gciDepthHeight: 150,
-  gciWindowSize: 50000,
-  gciDepthMin: 0.1,
-  gciDepthMax: 4.0,
+  // GCI相关默认值（与Python版本一致）
+  depth_height: 160, // 与Python版本一致：--depth_height default=160
+  panel_gap: undefined, // 默认：10% of depth_height
+  top_margin: 40, // 与Python版本一致：--top_margin default=40
+  window_size: 1000, // 与Python版本一致：--window-size default=1000
+  max_depth_ratio: 3.0, // 与Python版本一致：--max-depth-ratio default=3.0
+  min_safe_depth: 5, // 与Python版本一致：--min-safe-depth default=5
+  depth_axis_ticks: 5, // 与Python版本一致：--depth_axis_ticks default=5
+  depth_axis_font_size: 12, // 与Python版本一致：--depth_axis_font_size default=12
   auxiliaryLines: [],
   auxiliaryLineColor: 'rgba(255, 0, 0, 0.5)',
+  
+  // 向后兼容的旧参数名
+  gciDepthHeight: 160,
+  gciWindowSize: 1000,
+  gciDepthMin: 0.5, // 旧版本使用相对值，但Python版本使用绝对值5
+  gciDepthMax: 3.0,
   
   // LINKVIEW必需字段（会在运行时填充）
   layout: [],

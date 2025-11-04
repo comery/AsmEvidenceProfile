@@ -128,11 +128,21 @@ export function slidingWindowAverage(
  * @returns 平均深度值
  */
 export function calculateMeanDepth(depths: GciDepthData): number {
-  const allDepths: number[] = [];
+  let totalSum = 0;
+  let totalCount = 0;
+  
+  // 使用循环累加而不是合并数组，避免大数组导致的栈溢出
   for (const chromosome in depths) {
-    allDepths.push(...depths[chromosome]);
+    const chrDepths = depths[chromosome];
+    if (chrDepths && chrDepths.length > 0) {
+      for (let i = 0; i < chrDepths.length; i++) {
+        totalSum += chrDepths[i];
+        totalCount++;
+      }
+    }
   }
-  if (allDepths.length === 0) return 0;
-  return allDepths.reduce((a, b) => a + b, 0) / allDepths.length;
+  
+  if (totalCount === 0) return 0;
+  return totalSum / totalCount;
 }
 

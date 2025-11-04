@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { InputNumber, Button, Space, Typography, List } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import './UploadComponents.css';
 
 const { Text } = Typography;
 
@@ -37,62 +38,59 @@ const AuxiliaryLinesManager: React.FC<AuxiliaryLinesManagerProps> = ({
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Text strong>辅助线 (基因组位置):</Text>
-      <Space>
-        <InputNumber
-          placeholder="输入位置 (bp)"
-          value={newLinePos}
-          onChange={(value) => setNewLinePos(value == null || Number.isNaN(value) ? null : value)}
-          style={{ width: 200 }}
-          min={0}
-          formatter={(value) => value ? formatPosition(Number(value)) : ''}
-          parser={(value) => {
-            if (!value) return NaN;
-            // 解析 "42 Mb" 或 "42000000" 等格式
-            const match = value.match(/^(\d+\.?\d*)\s*(Mb|Kb|bp)?$/i);
-            if (match) {
-              const num = parseFloat(match[1]);
-              const unit = match[2]?.toLowerCase();
-              if (unit === 'mb') return num * 1e6;
-              if (unit === 'kb') return num * 1e3;
-              return num;
-            }
-            const parsed = parseFloat(value);
-            return Number.isNaN(parsed) ? NaN : parsed;
-          }}
-        />
+      <div className="input-group">
+        <div className="rounded-input" style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
+          <InputNumber
+            placeholder="输入位置 (bp)"
+            value={newLinePos}
+            onChange={(value) => setNewLinePos(value == null || Number.isNaN(value) ? null : value)}
+            style={{ width: '100%', border: 'none' }}
+            controls={false}
+            min={0}
+            formatter={(value) => value ? formatPosition(Number(value)) : ''}
+            parser={(value) => {
+              if (!value) return NaN;
+              // 解析 "42 Mb" 或 "42000000" 等格式
+              const match = value.match(/^(\d+\.?\d*)\s*(Mb|Kb|bp)?$/i);
+              if (match) {
+                const num = parseFloat(match[1]);
+                const unit = match[2]?.toLowerCase();
+                if (unit === 'mb') return num * 1e6;
+                if (unit === 'kb') return num * 1e3;
+                return num;
+              }
+              const parsed = parseFloat(value);
+              return Number.isNaN(parsed) ? NaN : parsed;
+            }}
+          />
+        </div>
         <Button
-          type="primary"
+          className="rounded-button rounded-button-primary rounded-button-small"
           icon={<PlusOutlined />}
           onClick={handleAdd}
           disabled={newLinePos === null}
         >
           添加
         </Button>
-      </Space>
+      </div>
       
       {lines.length > 0 && (
-        <List
-          size="small"
-          dataSource={lines}
-          renderItem={(pos) => (
-            <List.Item
-              actions={[
-                <Button
-                  type="link"
-                  danger
-                  icon={<DeleteOutlined />}
-                  size="small"
-                  onClick={() => handleRemove(pos)}
-                >
-                  删除
-                </Button>
-              ]}
-            >
-              {formatPosition(pos)}
-            </List.Item>
-          )}
-        />
+        <div style={{ marginTop: 8 }}>
+          {lines.map((pos, index) => (
+            <div key={index} className="auxiliary-list-item">
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}>
+                {formatPosition(pos)}
+              </span>
+              <button
+                className="remove-button"
+                onClick={() => handleRemove(pos)}
+                title="删除"
+              >
+                <DeleteOutlined />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </Space>
   );

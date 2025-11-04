@@ -36,6 +36,13 @@ module.exports = override(
         process: require.resolve('process/browser'),
       });
     }
+    
+    // 禁用 ModuleScopePlugin 以允许从 node_modules 导入本地包
+    // Create React App 默认只允许从 src/ 导入，这会阻止导入 node_modules 中的本地包
+    config.resolve.plugins = config.resolve.plugins.filter(
+      (plugin) => plugin.constructor.name !== 'ModuleScopePlugin'
+    );
+    
     return config;
   }
 );

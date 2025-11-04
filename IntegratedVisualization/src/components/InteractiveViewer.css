@@ -1,0 +1,38 @@
+.interactive-viewer-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.viewer-controls {
+  padding: 8px 12px;
+  border-bottom: 1px solid #d9d9d9;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.svg-viewer-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  min-height: 400px;
+}
+
+.svg-viewer-container svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.zoom-pan-group {
+  transform-origin: 0 0;
+}
+
