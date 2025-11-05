@@ -38,81 +38,13 @@ it looks like: ![web_ui](../images/webUI.png)
   - Optional PAF files: optionally upload HiFi/Nano PAF files; they will be merged with the main file.
 
 - Alignment normalization
-  - PAF lines are automatically converted into LINKVIEW 6-column format: `ctg1 start1 end1 ctg2 start2 end2`.
-  - Blank and comment lines (`#`) are ignored; existing 6-column lines are kept.
-  - If normalization results in empty content, the app warns you to review input formatting.
+  - Raw PAF/BLAST/MUMmer outputs are accepted directly; no manual conversion is required.
+  - Blank and comment lines (`#`) are ignored.
 
 - Generate
   - Optionally configure parameters in the sidebar.
   - Click “Generate Visualization”. The SVG renders either in an interactive viewer or as inline SVG.
 
-## CLI (Generate Integrated SVG without Browser)
-
-Two ways to run:
-- Direct script: `node IntegratedVisualization/cli/iv-cli.js --out output.svg [flags...]`
-- NPM script: `npm run iv-cli -- --out output.svg [flags...]`
-
-Common flags
-- `--out` Path to output SVG (required).
-- `--karyotype` Path to karyotype file (recommended).
-- `--depth1` HiFi depth file (supports `.gz`, `.depth`, `.txt`, single-value-per-line; basic `.bed` lists also accepted when single-value rows).
-- `--depth2` Nano depth file (same as above).
-- `--paf` PAF alignment file (repeatable).
-- `--per-chr-json` JSON mapping of per-chromosome files (see example below).
-- `--svg-width` Output width, default `1200`.
-- `--svg-height` Output height of the alignment panel (excludes depth panels), default `800`.
-- Depth parameters (aliases supported):
-  - `--gci-window-size` or `--window-size` (default `50000`).
-  - `--gci-depth-height` or `--depth-height` (default `150`).
-  - `--gci-depth-min` or `--min-safe-depth` (default `0.1` relative threshold).
-  - `--gci-depth-max` or `--max-depth-ratio` (default `4.0` relative ceiling).
-  - `--depth-axis-ticks` (default `5`).
-  - `--depth-axis-font-size` (default `12`).
-  - `--panel-gap` (gap between alignment and depth panels).
-  - `--top-margin` (top margin for layout).
-
-Examples
-
-1) Karyotype + HiFi depth only (renders depth panels + empty alignment):
-```bash
-node IntegratedVisualization/cli/iv-cli.js \
-  --out out.svg \
-  --karyotype example/karyotype.txt \
-  --depth1 example/hifi.depth.gz
-```
-
-2) Karyotype + two depth files + alignments (full integrated figure):
-```bash
-node IntegratedVisualization/cli/iv-cli.js \
-  --out out.svg \
-  --karyotype example/karyotype.txt \
-  --depth1 example/hifi.depth.gz \
-  --depth2 example/nano.depth.gz \
-  --paf example/hifi.paf \
-  --paf example/nano.paf
-```
-
-3) Per-chromosome mapping (JSON):
-```json
-{
-  "chr1": {
-    "hifiDepth": "data/chr1.hifi.depth.gz",
-    "nanoDepth": "data/chr1.nano.depth.gz",
-    "hifiPaf": "data/chr1.hifi.paf",
-    "nanoPaf": "data/chr1.nano.paf"
-  },
-  "chr2": { "hifiDepth": "data/chr2.hifi.depth.gz" }
-}
-```
-Run:
-```bash
-node IntegratedVisualization/cli/iv-cli.js \
-  --out out.svg \
-  --karyotype example/karyotype.txt \
-  --per-chr-json example/mapping.json
-```
-
-Note: The depth parser expects “one depth value per line” GCI format. Interval-style `.bed` files require conversion to density series before use.
 
 ## Minimal Example & Demo Script
 
