@@ -42,8 +42,8 @@ function extractChromosomeTracksFromLayout(layout: any[]): ChromosomeTrack[] {
         yTop = y;
         hMax = height || 15;
       } else {
-        xLeft = Math.min(xLeft, x);
-        xRight = Math.max(xRight, itemRight);
+        xLeft = xLeft === null ? x : Math.min(xLeft, x);
+        xRight = xRight === null ? itemRight : Math.max(xRight, itemRight);
         if (yTop !== null && Math.abs(y - yTop) < 1e-6) {
           hMax = Math.max(hMax, height || 15);
         }
@@ -148,6 +148,23 @@ function renderAuxiliaryLines(
 }
 
 /**
+ * 规范化 highlight 文本：
+ * - 去除空行与注释行（以#开头）
+ * - 压缩空白为单个空格
+ * - 仅保留至少包含 seq start end 的行
+ */
+function normalizeHighlightContent(text?: string): string {
+  if (!text) return '';
+  return text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'))
+    .map(line => line.replace(/\s+/g, ' '))
+    .filter(line => line.split(' ').length >= 3)
+    .join('\n');
+}
+
+/**
  * 扩展的main函数，严格遵循Python版本的run函数逻辑
  */
 export async function extendedMain(options: ExtendedOptions): Promise<string> {
@@ -161,6 +178,8 @@ export async function extendedMain(options: ExtendedOptions): Promise<string> {
   // 1. 调用LINKVIEW生成SVG
   const linkviewOptions: Options = {
     ...options,
+    // 清理 highlightContent，避免下游解析在空行或缺少字段时报错
+    highlightContent: normalizeHighlightContent(options.highlightContent || ''),
   } as Options;
   
   console.log('[extendedMain] Calling LINKVIEW main...');

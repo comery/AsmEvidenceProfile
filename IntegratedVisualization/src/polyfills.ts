@@ -1,3 +1,6 @@
-// Ensure a global process object exists in browser builds (webpack 4 / CRA)
+// Ensure a robust global `process` for browser builds
 import proc from 'process/browser';
-(window as any).process = proc as any;
+const g: any = window as any;
+g.process = g.process || proc;
+g.process.env = g.process.env || { NODE_ENV: process.env?.NODE_ENV || 'development' };
+g.process.browser = true;

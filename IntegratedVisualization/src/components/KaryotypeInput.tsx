@@ -60,7 +60,7 @@ const KaryotypeInput: React.FC<KaryotypeInputProps> = ({ onImport, onContentChan
         </div>
       </Upload>
       <TextArea
-        rows={6}
+        rows={3}
         value={fileText}
         onChange={(e) => {
           setFileText(e.target.value);

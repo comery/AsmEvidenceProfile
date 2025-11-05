@@ -16,3 +16,27 @@ code {
   box-sizing: border-box;
 }
 
+/* 主题变量 */
+:root {
+  --color-primary: #6a7ae6;
+  --color-primary-strong: #667eea;
+  --color-secondary: #8a5db3;
+  --color-bg-gradient-start: #f5f7fa;
+  --color-bg-gradient-end: #c3cfe2;
+  --color-card-bg-start: #fafafa;
+  --color-card-bg-end: #ffffff;
+  --color-border: #e8e8e8;
+  --color-border-soft: #d4d4d4;
+  --color-text-strong: #262626;
+  --color-text-medium: #595959;
+  --color-text-soft: #8c8c8c;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-primary: 0 2px 8px rgba(102,126,234,0.3);
+}
+

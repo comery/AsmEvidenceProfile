@@ -65,13 +65,11 @@ const AuxiliaryLinesManager: React.FC<AuxiliaryLinesManagerProps> = ({
           />
         </div>
         <Button
-          className="rounded-button rounded-button-primary rounded-button-small"
+          className="rounded-button rounded-button-primary rounded-button-circle-lg"
           icon={<PlusOutlined />}
           onClick={handleAdd}
           disabled={newLinePos === null}
-        >
-          添加
-        </Button>
+        />
       </div>
       
       {lines.length > 0 && (

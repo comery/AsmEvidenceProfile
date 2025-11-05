@@ -54,6 +54,20 @@ try {
     console.log('[postinstall] Building linkview-align-parser first...');
     if (buildPkg(parserSrcTsconfig, parserTargetDir, projectRoot)) {
       rewriteMain(parserPkgDir, 'lib/index.js');
+      // Browser safety patch: remove process.exit() from utils/error.js
+      try {
+        const errJsPath = join(parserTargetDir, 'utils', 'error.js');
+        if (existsSync(errJsPath)) {
+          const src = readFileSync(errJsPath, 'utf-8');
+          const patched = src.replace(/process\.exit\(\);?/g, '/* no-op in browser */');
+          if (patched !== src) {
+            writeFileSync(errJsPath, patched);
+            console.log('[postinstall] Patched @linkview/linkview-align-parser/lib/utils/error.js to remove process.exit().');
+          }
+        }
+      } catch (e) {
+        console.warn('[postinstall] Failed to patch align-parser error.js:', e && e.message ? e.message : e);
+      }
     }
   } else {
     console.warn('[postinstall] LINKVIEW2 source not found, skipping build for linkview-align-parser');

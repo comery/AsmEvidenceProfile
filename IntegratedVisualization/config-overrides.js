@@ -13,7 +13,6 @@ module.exports = override(
   ]),
   addWebpackAlias({
     '@linkview/linkview-core': path.resolve(__dirname, 'node_modules/@linkview/linkview-core'),
-    '@linkview/linkview-align-parser': path.resolve(__dirname, 'src/utils/alignParserShim.ts'),
     'chalk': path.resolve(__dirname, 'src/utils/chalkShim.ts'),
     'fs': path.resolve(__dirname, 'src/utils/fsShim.ts'),
     'async-validator': path.resolve(__dirname, 'src/utils/asyncValidatorShim.js'),
@@ -26,7 +25,7 @@ module.exports = override(
   ),
   addWebpackPlugin(
     new webpack.DefinePlugin({
-      'process.env': JSON.stringify({ NODE_ENV: 'development' }),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     })
   ),
   (config) => {

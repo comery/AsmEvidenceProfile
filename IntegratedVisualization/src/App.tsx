@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import './App.css';
-import { PageHeader, Alert, Form, Input, Button, Collapse, InputNumber, Space, message, Select, Spin } from 'antd';
-import { GithubOutlined, DownloadOutlined, LoadingOutlined } from '@ant-design/icons';
+import { PageHeader, Alert, Form, Button, Collapse, InputNumber, Space, message, Select, Spin, Slider, Upload, Input } from 'antd';
+import { GithubOutlined, DownloadOutlined, LoadingOutlined, UploadOutlined } from '@ant-design/icons';
 import GciFileUpload from './components/GciFileUpload';
 import GciFileUploadPerChr from './components/GciFileUploadPerChr';
 import LinkviewUpload from './components/LinkviewUpload';
+import RoundedNumberInput from './components/RoundedNumberInput';
 import KaryotypeInput from './components/KaryotypeInput';
 import AuxiliaryLinesManager from './components/AuxiliaryLinesManager';
 import InteractiveViewer from './components/InteractiveViewer';
-import JBrowseViewer from './components/JBrowseViewer';
 import SidebarResizer from './components/SidebarResizer';
 import { extendedMain, ExtendedOptions } from './utils/linkviewWrapper';
 import { parseDepthFile, calculateMeanDepth, GciDepthData } from './utils/gciParser';
 import initOptions from './utils/initOptions';
 import type { UploadFile } from 'antd/es/upload/interface';
 
-const { TextArea } = Input;
 const { Panel } = Collapse;
 
 function App() {
@@ -46,10 +45,58 @@ function App() {
   const [linkviewInputContent, setLinkviewInputContent] = useState<string>('');
   const [karyotypeContent, setKaryotypeContent] = useState<string>('');
   const [useInteractiveViewer, setUseInteractiveViewer] = useState<boolean>(true);
-  const [useJBrowseViewer, setUseJBrowseViewer] = useState<boolean>(false);
   const [currentZoom, setCurrentZoom] = useState<number>(1);
   const [chromosomes, setChromosomes] = useState<Array<{ name: string; length: number }>>([]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(320);
+
+  // 快速自检：检查当前输入的完整性与解析结果
+  const runQuickDiagnostics = () => {
+    const diagnostics: string[] = [];
+
+    // karyotype 检查
+    const karyoText = (karyotypeContent || '').trim();
+    if (karyoText.length === 0) {
+      diagnostics.push('karyotype: 未提供');
+    } else {
+      const lines = karyoText.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
+      diagnostics.push(`karyotype: 行数=${lines.length}`);
+    }
+
+    // depth 检查
+    const summarizeDepth = (data?: { [chromosome: string]: number[] }) => {
+      if (!data || Object.keys(data).length === 0) return '未提供';
+      const chrs = Object.keys(data);
+      let totalLen = 0;
+      for (const c of chrs) totalLen += (data[c]?.length || 0);
+      return `染色体=${chrs.length}, 总长度=${totalLen}`;
+    };
+    if (usePerChrUpload) {
+      diagnostics.push(`HiFi(A+B): ${summarizeDepth(hifiADepthData as any)}`);
+      diagnostics.push(`ONT(A+B): ${summarizeDepth(ontADepthData as any)}`);
+      diagnostics.push(`HiFi(B): ${summarizeDepth(hifiBDepthData as any)}`);
+      diagnostics.push(`ONT(B): ${summarizeDepth(ontBDepthData as any)}`);
+    } else {
+      diagnostics.push(`HiFi depth: ${summarizeDepth(gciDepthData)}`);
+      diagnostics.push(`Nano depth: ${summarizeDepth(gciDepthData2)}`);
+    }
+
+    // 比对数据检查（必填）
+    const alnLen = (linkviewInputContent || '').length;
+    if (alnLen === 0) {
+      diagnostics.push('比对数据: 未提供（必填）');
+    } else {
+      diagnostics.push(`比对数据: 文本长度=${alnLen}`);
+    }
+
+    // 输出提示
+    const msg = diagnostics.join('\n');
+    console.log('[Diagnostics]', msg);
+    if (alnLen === 0) {
+      message.error('输入自检：缺少必填的比对数据文件');
+    } else {
+      message.info(`输入自检结果:\n${msg}`);
+    }
+  };
 
   // 更新染色体信息（从深度数据中提取）
   const updateChromosomes = (depths1?: { [chromosome: string]: number[] }, depths2?: { [chromosome: string]: number[] }) => {
@@ -205,10 +252,24 @@ function App() {
     console.log('Starting visualization generation...');
     
     try {
-      // 整理对齐输入：合并用户粘贴、两个 PAF 上传内容，以及额外比对文件
-      let combinedAlignments = linkviewInputContent || values.inputContent || '';
+  // 整理对齐输入：合并两个 PAF 上传内容，以及额外比对文件
+  let combinedAlignments = '';
       
-      // 合并 HiFi 和 Nano PAF 文件
+      // 必填：额外比对数据文件
+      if (linkviewFiles.length === 0 || !linkviewFiles[0]?.originFileObj) {
+        message.error('请上传额外比对数据文件');
+        setIsLoading(false);
+        return;
+      }
+
+      // 合并额外比对文件（如 scaffold_38.paf）
+      if (linkviewFiles.length > 0 && linkviewFiles[0].originFileObj) {
+        const file = linkviewFiles[0].originFileObj as File;
+        const text = await file.text();
+        combinedAlignments += (combinedAlignments ? '\n' : '') + text;
+      }
+
+      // 合并 HiFi 和 Nano PAF 文件（可选）
       const pafFiles: UploadFile[] = [hifiPafFiles[0], nanoPafFiles[0]].filter(Boolean) as UploadFile[];
       for (const uf of pafFiles) {
         if (uf.originFileObj) {
@@ -216,24 +277,29 @@ function App() {
           combinedAlignments += (combinedAlignments ? '\n' : '') + text;
         }
       }
-      
-      // 合并额外比对文件（如 scaffold_38.paf）
-      if (linkviewFiles.length > 0 && linkviewFiles[0].originFileObj) {
-        const file = linkviewFiles[0].originFileObj as File;
-        const text = await file.text();
-        combinedAlignments += (combinedAlignments ? '\n' : '') + text;
-      }
-      
-      console.log('Combined alignments length:', combinedAlignments.length);
-      
+
+      console.log('Combined alignments length (raw):', combinedAlignments.length);
+
       if (!combinedAlignments.trim()) {
-        message.warning('没有比对数据输入，请上传比对文件或输入比对数据');
+        message.error('额外比对数据文件内容为空');
+        setIsLoading(false);
+        return;
+      }
+
+      // 归一化：将可能的 PAF 行转换为 LINKVIEW 六列格式
+      const normalizedAlignments = normalizeAlignmentsText(combinedAlignments);
+      console.log('Combined alignments length (normalized):', normalizedAlignments.length);
+      if (!normalizedAlignments.trim()) {
+        message.error('比对数据归一化后为空，请检查输入格式');
+        setIsLoading(false);
+        return;
       }
 
       const options: ExtendedOptions = {
         ...initOptions,
         ...values,
-        inputContent: combinedAlignments,
+        // 传入归一化后的 alignments 内容（PAF 将转为六列 LINKVIEW 格式）
+        inputContent: normalizedAlignments,
         // 使用已导入的 karyotype 内容（来自组件状态）
         karyotypeContent: karyotypeContent || '',
         highlightContent: values.highlightContent || '',
@@ -313,7 +379,7 @@ function App() {
         ...options,
         gciDepthData: options.gciDepthData ? Object.keys(options.gciDepthData) : undefined,
         gciDepthData2: options.gciDepthData2 ? Object.keys(options.gciDepthData2) : undefined,
-        inputContentLength: options.inputContent?.length || 0,
+        inputContentLength: combinedAlignments.length,
       });
       
       const svg = await extendedMain(options) || '';
@@ -370,7 +436,7 @@ function App() {
         subTitle="整合GCI深度图和LINKVIEW比对关系的可视化工具"
       >
         <p className="supplement">
-          本工具可以同时可视化GCI深度数据和LINKVIEW比对关系，并通过基因组坐标进行对齐。
+          本工具可以同时可视化GCI深度数据和LINKVIEW比对关系，并通过基因组坐标进行对齐，方便检查基因组组装情况。
         </p>
       </PageHeader>
 
@@ -447,38 +513,101 @@ function App() {
                     />
                   )}
                 </Space>
-              </Form.Item>
+          </Form.Item>
 
-              <Collapse ghost>
-                <Panel header="PAF比对文件（可选）" key="paf">
-                  <Form.Item label="HiFi PAF">
-                    <LinkviewUpload
-                      fileList={hifiPafFiles}
-                      onChange={handleHifiPafChange}
-                      onRemove={() => setHifiPafFiles([])}
-                    />
-                  </Form.Item>
-                  
-                  <Form.Item label="Nano PAF">
-                    <LinkviewUpload
-                      fileList={nanoPafFiles}
-                      onChange={handleNanoPafChange}
-                      onRemove={() => setNanoPafFiles([])}
-                    />
-                  </Form.Item>
-                </Panel>
-              </Collapse>
-
-              <Form.Item label="额外比对数据（可选）">
+          <Collapse ghost>
+            <Panel header="PAF比对文件（可选）" key="paf">
+              <Form.Item label="HiFi PAF">
                 <LinkviewUpload
-                  fileList={linkviewFiles}
-                  onChange={handleLinkviewFileChange}
-                  onRemove={() => {
-                    setLinkviewFiles([]);
-                    setLinkviewInputContent('');
-                  }}
+                  fileList={hifiPafFiles}
+                  onChange={handleHifiPafChange}
+                  onRemove={() => setHifiPafFiles([])}
                 />
               </Form.Item>
+              
+              <Form.Item label="Nano PAF">
+                <LinkviewUpload
+                  fileList={nanoPafFiles}
+                  onChange={handleNanoPafChange}
+                  onRemove={() => setNanoPafFiles([])}
+                />
+              </Form.Item>
+            </Panel>
+          </Collapse>
+
+          <Form.Item label="比对数据（必填）">
+            <LinkviewUpload
+              fileList={linkviewFiles}
+              onChange={handleLinkviewFileChange}
+              onRemove={() => {
+                setLinkviewFiles([]);
+                setLinkviewInputContent('');
+              }}
+            />
+          </Form.Item>
+
+          {/* 额外配置文件输入 */}
+          <Form.Item label="Highlight 配置（可选）" name="highlightContent">
+            <div className="upload-section">
+              <Upload
+                accept=".txt,.tsv,.csv"
+                beforeUpload={async (file) => {
+                  try {
+                    const text = await file.text();
+                    form.setFieldsValue({ highlightContent: text });
+                    message.success('已载入 highlight 配置');
+                  } catch (e) {
+                    message.error('读取 highlight 文件失败');
+                  }
+                  return false;
+                }}
+                maxCount={1}
+                showUploadList={false}
+              >
+                <div className="upload-button">
+                  <UploadOutlined style={{ fontSize: 16 }} />
+                  <span>上传 highlight 文件</span>
+                </div>
+              </Upload>
+              <Input.TextArea
+                rows={3}
+                placeholder="每行：seq start end [color:opacity]，例如：ctg1 1000 2000 red:0.5"
+                className="rounded-textarea"
+              />
+              <div className="help-text">支持 LINKVIEW2 文档中描述的 highlight 文件格式；颜色可省略。</div>
+            </div>
+          </Form.Item>
+
+          <Form.Item label="GFF 配置（可选）" name="gffContent">
+            <div className="upload-section">
+              <Upload
+                accept=".gff,.gff3,.txt"
+                beforeUpload={async (file) => {
+                  try {
+                    const text = await file.text();
+                    form.setFieldsValue({ gffContent: text });
+                    message.success('已载入 GFF 配置');
+                  } catch (e) {
+                    message.error('读取 GFF 文件失败');
+                  }
+                  return false;
+                }}
+                maxCount={1}
+                showUploadList={false}
+              >
+                <div className="upload-button">
+                  <UploadOutlined style={{ fontSize: 16 }} />
+                  <span>上传 GFF 文件</span>
+                </div>
+              </Upload>
+              <Input.TextArea
+                rows={3}
+                placeholder="粘贴或编辑 GFF/GFF3 内容"
+                className="rounded-textarea"
+              />
+              <div className="help-text">支持标准 GFF/GFF3 格式，将在 LINKVIEW2 中用于绘制基因结构。</div>
+            </div>
+          </Form.Item>
             </div>
 
             {/* 可视化设置 */}
@@ -490,32 +619,29 @@ function App() {
                     name="svg_width"
                     label="分辨率宽度 (px)"
                     initialValue={initOptions.svg_width}
+                    help="导出 SVG 的基础内容宽度"
                   >
-                    <InputNumber
-                      min={100}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={100} />
                   </Form.Item>
                   <Form.Item
                     name="svg_height"
                     label="基础高度 (px)"
                     initialValue={initOptions.svg_height}
+                    help="LINKVIEW 中部区域的基础高度"
                   >
-                    <InputNumber
-                      min={100}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={100} />
                   </Form.Item>
                   <Form.Item
                     name="svg_space"
                     label="左右边距比例"
                     initialValue={initOptions.svg_space}
+                    help="0 表示无边距，1 表示全部留白"
                   >
-                    <InputNumber
+                    <Slider
                       min={0}
                       max={1}
-                      step={0.1}
-                      style={{ width: '100%' }}
+                      step={0.05}
+                      tooltip={{ formatter: (v) => `${(v ?? 0).toFixed(2)}` }}
                     />
                   </Form.Item>
                 </Panel>
@@ -525,56 +651,41 @@ function App() {
                     name="depth_height"
                     label="深度面板高度 (px)"
                     initialValue={initOptions.depth_height}
+                    help="每个深度面板的高度（上/下各一个）"
                   >
-                    <InputNumber
-                      min={50}
-                      max={500}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={50} max={500} />
                   </Form.Item>
                   <Form.Item
                     name="window_size"
                     label="滑动窗口大小 (bp)"
                     initialValue={initOptions.window_size}
+                    help="用于计算平均深度的窗口大小"
                   >
-                    <InputNumber
-                      min={1}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={1} />
                   </Form.Item>
                   <Form.Item
                     name="max_depth_ratio"
                     label="最大深度比例"
                     initialValue={initOptions.max_depth_ratio}
+                    help="深度值的显示上限比例（用于裁剪高峰）"
                   >
-                    <InputNumber
-                      min={1}
-                      max={10}
-                      step={0.1}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={1} max={10} step={0.1} />
                   </Form.Item>
                   <Form.Item
                     name="min_safe_depth"
                     label="最小安全深度"
                     initialValue={initOptions.min_safe_depth}
+                    help="用于高亮低深度区域的阈值"
                   >
-                    <InputNumber
-                      min={1}
-                      step={1}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={1} step={1} />
                   </Form.Item>
                   <Form.Item
                     name="top_margin"
                     label="顶部边距 (px)"
                     initialValue={initOptions.top_margin}
+                    help="整体可视化的顶部留白"
                   >
-                    <InputNumber
-                      min={0}
-                      step={10}
-                      style={{ width: '100%' }}
-                    />
+                    <RoundedNumberInput min={0} step={10} />
                   </Form.Item>
                 </Panel>
               </Collapse>
@@ -589,26 +700,30 @@ function App() {
                   onChange={setAuxiliaryLines}
                 />
               </Form.Item>
-              <Collapse ghost>
-                <Panel header="手动粘贴比对数据" key="paste">
-                  <Form.Item name="inputContent" initialValue={initOptions.inputContent}>
-                    <TextArea rows={4} wrap="off" placeholder="每行一个比对关系" style={{ fontFamily: 'monospace', fontSize: '12px' }} />
-                  </Form.Item>
-                </Panel>
-              </Collapse>
+              
             </div>
 
             {/* 生成按钮 */}
             <Form.Item style={{ marginBottom: 0 }}>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                style={{ width: '100%', height: '42px', fontSize: '16px' }}
-                loading={isLoading}
-                disabled={isLoading}
-              >
-                {isLoading ? '正在生成可视化...' : '生成可视化'}
-              </Button>
+              <Space style={{ width: '100%' }}>
+                <Button
+                  className="rounded-button rounded-button-secondary"
+                  style={{ height: '42px' }}
+                  onClick={runQuickDiagnostics}
+                  disabled={isLoading}
+                >
+                  快速自检
+                </Button>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  style={{ width: '100%', height: '42px', fontSize: '16px' }}
+                  loading={isLoading}
+                  disabled={isLoading}
+                >
+                  {isLoading ? '正在生成可视化...' : '生成可视化'}
+                </Button>
+              </Space>
             </Form.Item>
           </Form>
         </div>
@@ -658,23 +773,17 @@ function App() {
                   <Space>
                     <span style={{ fontWeight: 500, color: '#595959' }}>查看模式:</span>
                     <Select
-                      value={useJBrowseViewer ? 'jbrowse' : (useInteractiveViewer ? 'interactive' : 'static')}
+                      value={useInteractiveViewer ? 'interactive' : 'static'}
                       onChange={(value) => {
-                        if (value === 'jbrowse') {
-                          setUseJBrowseViewer(true);
-                          setUseInteractiveViewer(false);
-                        } else if (value === 'interactive') {
-                          setUseJBrowseViewer(false);
+                        if (value === 'interactive') {
                           setUseInteractiveViewer(true);
                         } else {
-                          setUseJBrowseViewer(false);
                           setUseInteractiveViewer(false);
                         }
                       }}
                       style={{ width: 150 }}
                     >
                       <Select.Option value="interactive">交互式 SVG</Select.Option>
-                      <Select.Option value="jbrowse">JBrowse 风格</Select.Option>
                       <Select.Option value="static">静态 SVG</Select.Option>
                     </Select>
                   </Space>
@@ -686,16 +795,7 @@ function App() {
                     <DownloadOutlined /> 下载SVG
                   </a>
                 </div>
-                {useJBrowseViewer ? (
-                  <div style={{ height: '600px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-                    <JBrowseViewer
-                      depthData={gciDepthData}
-                      depthData2={gciDepthData2}
-                      alignmentData={linkviewInputContent}
-                      chromosomes={chromosomes}
-                    />
-                  </div>
-                ) : useInteractiveViewer ? (
+                {useInteractiveViewer ? (
                   <div style={{ height: '600px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
                     <InteractiveViewer
                       svgContent={svg}
@@ -720,8 +820,7 @@ function App() {
                     准备开始可视化
                   </p>
                   <p style={{ margin: 0 }}>
-                    请在左侧侧边栏上传 karyotype、HiFi/Nano depth 与 PAF 文件<br />
-                    （或粘贴比对数据），然后点击「生成可视化」按钮。
+                    请在左侧侧边栏上传 karyotype、HiFi/Nano depth 与 PAF 文件，然后点击「生成可视化」按钮。
                   </p>
                 </div>
               </div>
@@ -734,4 +833,56 @@ function App() {
 }
 
 export default App;
+  // 将可能的 PAF 行归一化为 LINKVIEW 默认六列格式：ctg1 s1 e1 ctg2 s2 e2
+  const isLikelyPafLine = (line: string) => {
+    const parts = line.trim().split(/\s+/);
+    // 典型 PAF 至少 12 列，列5通常为 "+/-"；列10/11为数字
+    if (parts.length >= 12) {
+      const strand = parts[4];
+      const hasNumCols = /^\d+$/.test(parts[10]) && /^\d+$/.test(parts[11]);
+      return (strand === '+' || strand === '-') || hasNumCols;
+    }
+    return false;
+  };
+
+  const convertPafLineToLinkview = (line: string): string | null => {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 9) return null;
+    const qName = parts[0];
+    const qStart = parseInt(parts[2], 10);
+    const qEnd = parseInt(parts[3], 10);
+    const tName = parts[5];
+    const tStart = parseInt(parts[7], 10);
+    const tEnd = parseInt(parts[8], 10);
+    if ([qStart, qEnd, tStart, tEnd].some(n => Number.isNaN(n))) return null;
+    return `${qName} ${qStart} ${qEnd} ${tName} ${tStart} ${tEnd}`;
+  };
+
+  const normalizeAlignmentsText = (text: string): string => {
+    const lines = text.split(/\r?\n/);
+    const out: string[] = [];
+    let pafCount = 0;
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      if (isLikelyPafLine(line)) {
+        pafCount++;
+        const conv = convertPafLineToLinkview(line);
+        if (conv) out.push(conv);
+      } else {
+        const parts = line.split(/\s+/);
+        if (parts.length >= 6) {
+          // 只取前6列，兼容已是 LINKVIEW 六列格式的情况
+          out.push([parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]].join(' '));
+        } else {
+          // 保留原行，避免误删
+          out.push(line);
+        }
+      }
+    }
+    if (pafCount > 0) {
+      console.log(`[Alignments] Detected ${pafCount} PAF lines; normalized to 6-column LINKVIEW format`);
+    }
+    return out.join('\n');
+  };
 
