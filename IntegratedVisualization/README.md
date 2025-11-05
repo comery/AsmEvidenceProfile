@@ -25,6 +25,7 @@ npm start
 ```
 
 Open `http://localhost:3000`.
+it looks like: ![web_ui](../images/webUI.png)
 
 ## Usage (Web UI)
 
@@ -76,19 +77,19 @@ Examples
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out out.svg \
-  --karyotype data/karyotype.txt \
-  --depth1 data/hifi.depth.gz
+  --karyotype example/karyotype.txt \
+  --depth1 example/hifi.depth.gz
 ```
 
 2) Karyotype + two depth files + alignments (full integrated figure):
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out out.svg \
-  --karyotype data/karyotype.txt \
-  --depth1 data/hifi.depth.gz \
-  --depth2 data/nano.depth.gz \
-  --paf data/hifi.paf \
-  --paf data/nano.paf
+  --karyotype example/karyotype.txt \
+  --depth1 example/hifi.depth.gz \
+  --depth2 example/nano.depth.gz \
+  --paf example/hifi.paf \
+  --paf example/nano.paf
 ```
 
 3) Per-chromosome mapping (JSON):
@@ -107,31 +108,22 @@ Run:
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out out.svg \
-  --karyotype data/karyotype.txt \
-  --per-chr-json data/mapping.json
+  --karyotype example/karyotype.txt \
+  --per-chr-json example/mapping.json
 ```
 
 Note: The depth parser expects “one depth value per line” GCI format. Interval-style `.bed` files require conversion to density series before use.
 
 ## Minimal Example & Demo Script
 
-A runnable minimal example is included:
-- Data: `IntegratedVisualization/examples/`
-- Demo script: `IntegratedVisualization/scripts/demo.sh`
-
-Run the demo (produces `examples/out.svg`):
-```bash
-cd IntegratedVisualization
-npm run demo
-```
-Or directly:
+Place your test files under `example/` at the repository root. Example run (produces `images/integrated_output.svg`):
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
-  --out IntegratedVisualization/examples/out.svg \
-  --karyotype IntegratedVisualization/examples/karyotype.txt \
-  --depth1 IntegratedVisualization/examples/hifi.depth.txt \
-  --depth2 IntegratedVisualization/examples/nano.depth.txt \
-  --alignments IntegratedVisualization/examples/alignments.txt
+  --out images/integrated_output.svg \
+  --karyotype example/karyotype.txt \
+  --depth1 example/hifi.depth.txt \
+  --depth2 example/nano.depth.txt \
+  --alignments example/alignments.txt
 ```
 
 ## Build
