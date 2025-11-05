@@ -1,63 +1,78 @@
 # Integrated Visualization
 
-整合GCI深度图和LINKVIEW比对关系的交互式Web可视化工具。
+An interactive web tool that integrates GCI depth plots with LINKVIEW alignment visualization, aligned by genome coordinates.
 
-## 功能特点
+## Highlights
 
-- **GCI深度数据可视化**: 支持上传和可视化GCI生成的`.depth.gz`文件
-- **LINKVIEW比对可视化**: 支持可视化基因组比对关系
-- **坐标同步对齐**: GCI深度图和LINKVIEW比对图通过基因组坐标自动对齐
-- **辅助线功能**: 可以添加垂直辅助线，同步显示在所有面板上
-- **可配置参数**: 支持设置分辨率、面板高度、窗口大小等参数
+- GCI depth visualization: upload and render `.depth.gz`/plain depth files.
+- LINKVIEW alignment visualization: render genome-to-genome alignments.
+- Coordinate-synchronized panels: align depth and alignment panels on the same genomic axes.
+- Auxiliary lines: add vertical markers rendered across all panels.
+- Configurable parameters: control resolution, panel height, window size, and more.
+- PAF auto-normalization: PAF lines are automatically converted to LINKVIEW’s 6-column format.
 
-## 安装
+## Installation
 
 ```bash
 cd IntegratedVisualization
 npm install
 ```
 
-## 运行
+## Run (Web App)
 
 ```bash
 npm start
 ```
 
-应用将在 http://localhost:3000 启动。
+Open `http://localhost:3000`.
 
-## 使用说明
+## Usage (Web UI)
 
-1. **上传GCI深度文件**: 在界面左侧上传`.depth.gz`文件（可选第二个Nano数据集）
-2. **输入LINKVIEW比对数据**: 在"LINKVIEW比对数据"文本框中输入比对关系
-3. **添加辅助线**（可选）: 输入基因组位置添加垂直辅助线
-4. **配置参数**（可选）: 在折叠面板中调整分辨率、高度等参数
-5. **生成可视化**: 点击"生成可视化"按钮
+- Inputs
+  - Karyotype: paste or upload karyotype text.
+  - Depth data:
+    - Global mode: upload HiFi (`depth1`) and optionally Nano (`depth2`).
+    - Per-chromosome mode: upload per-chromosome files for HiFi/Nano (A/B groups supported in the UI).
+  - Alignment data (required): upload your main alignment file (PAF, BLAST, MUMmer, or LINKVIEW 6-column).
+  - Optional PAF files: optionally upload HiFi/Nano PAF files; they will be merged with the main file.
 
-## 命令行使用（生成拼接好的图片）
+- Alignment normalization
+  - PAF lines are automatically converted into LINKVIEW 6-column format: `ctg1 start1 end1 ctg2 start2 end2`.
+  - Blank and comment lines (`#`) are ignored; existing 6-column lines are kept.
+  - If normalization results in empty content, the app warns you to review input formatting.
 
-无需打开浏览器，直接通过命令行将输入文件拼接为 SVG 图片。
+- Generate
+  - Optionally configure parameters in the sidebar.
+  - Click “Generate Visualization”. The SVG renders either in an interactive viewer or as inline SVG.
 
-两种调用方式：
-- 直接运行脚本：`node IntegratedVisualization/cli/iv-cli.js --out output.svg [参数...]`
-- 使用 npm 脚本：`npm run iv-cli -- --out output.svg [参数...]`
+## CLI (Generate Integrated SVG without Browser)
 
-常用参数：
-- `--out` 输出 SVG 文件路径（必填）
-- `--karyotype` karyotype 文件路径（推荐先提供）
-- `--depth1` HiFi 深度文件（支持 `.gz`, `.depth`, `.txt`, `.bed` 单值格式）
-- `--depth2` Nano 深度文件（同上）
-- `--paf` PAF 比对文件（可重复多次传入多个）
-- `--per-chr-json` 每条染色体的文件映射 JSON（见示例）
-- `--svg-width` 输出宽度，默认 `1200`
-- `--svg-height` 输出高度（不含深度面板），默认 `800`
-- `--gci-window-size` 深度滑窗大小，默认 `50000`
-- `--gci-depth-height` 单个深度面板高度，默认 `150`
-- `--gci-depth-min` 深度最小倍数（相对均值），默认 `0.1`
-- `--gci-depth-max` 深度最大倍数（相对均值），默认 `4.0`
+Two ways to run:
+- Direct script: `node IntegratedVisualization/cli/iv-cli.js --out output.svg [flags...]`
+- NPM script: `npm run iv-cli -- --out output.svg [flags...]`
 
-示例：
+Common flags
+- `--out` Path to output SVG (required).
+- `--karyotype` Path to karyotype file (recommended).
+- `--depth1` HiFi depth file (supports `.gz`, `.depth`, `.txt`, single-value-per-line; basic `.bed` lists also accepted when single-value rows).
+- `--depth2` Nano depth file (same as above).
+- `--paf` PAF alignment file (repeatable).
+- `--per-chr-json` JSON mapping of per-chromosome files (see example below).
+- `--svg-width` Output width, default `1200`.
+- `--svg-height` Output height of the alignment panel (excludes depth panels), default `800`.
+- Depth parameters (aliases supported):
+  - `--gci-window-size` or `--window-size` (default `50000`).
+  - `--gci-depth-height` or `--depth-height` (default `150`).
+  - `--gci-depth-min` or `--min-safe-depth` (default `0.1` relative threshold).
+  - `--gci-depth-max` or `--max-depth-ratio` (default `4.0` relative ceiling).
+  - `--depth-axis-ticks` (default `5`).
+  - `--depth-axis-font-size` (default `12`).
+  - `--panel-gap` (gap between alignment and depth panels).
+  - `--top-margin` (top margin for layout).
 
-1) 仅 karyotype + HiFi 深度（生成深度面板 + 空对齐图）：
+Examples
+
+1) Karyotype + HiFi depth only (renders depth panels + empty alignment):
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out out.svg \
@@ -65,7 +80,7 @@ node IntegratedVisualization/cli/iv-cli.js \
   --depth1 data/hifi.depth.gz
 ```
 
-2) karyotype + 两个深度文件 + 对齐数据（完整整合图）：
+2) Karyotype + two depth files + alignments (full integrated figure):
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out out.svg \
@@ -76,7 +91,7 @@ node IntegratedVisualization/cli/iv-cli.js \
   --paf data/nano.paf
 ```
 
-3) 按染色体分别指定文件（JSON 映射）：
+3) Per-chromosome mapping (JSON):
 ```json
 {
   "chr1": {
@@ -88,7 +103,7 @@ node IntegratedVisualization/cli/iv-cli.js \
   "chr2": { "hifiDepth": "data/chr2.hifi.depth.gz" }
 }
 ```
-调用命令：
+Run:
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out out.svg \
@@ -96,20 +111,20 @@ node IntegratedVisualization/cli/iv-cli.js \
   --per-chr-json data/mapping.json
 ```
 
-注意：当前深度解析器支持“每行一个深度值”的 GCI 格式。若 `.bed` 文件为区间格式，需要后续适配才能解析为密度曲线。
+Note: The depth parser expects “one depth value per line” GCI format. Interval-style `.bed` files require conversion to density series before use.
 
-## 最小示例数据与演示脚本
+## Minimal Example & Demo Script
 
-已内置一个可运行的最小示例：
-- 示例数据位于 `IntegratedVisualization/examples/`
-- 演示脚本位于 `IntegratedVisualization/scripts/demo.sh`
+A runnable minimal example is included:
+- Data: `IntegratedVisualization/examples/`
+- Demo script: `IntegratedVisualization/scripts/demo.sh`
 
-运行演示（生成 `examples/out.svg`）：
+Run the demo (produces `examples/out.svg`):
 ```bash
 cd IntegratedVisualization
 npm run demo
 ```
-或直接：
+Or directly:
 ```bash
 node IntegratedVisualization/cli/iv-cli.js \
   --out IntegratedVisualization/examples/out.svg \
@@ -119,21 +134,22 @@ node IntegratedVisualization/cli/iv-cli.js \
   --alignments IntegratedVisualization/examples/alignments.txt
 ```
 
-## 构建
+## Build
 
 ```bash
 npm run build
 ```
 
-## 依赖
+## Dependencies
 
 - React 17
 - Ant Design 4
-- LINKVIEW Core (作为本地依赖)
-- pako (用于解压.gz文件)
+- LINKVIEW Core (local dependency)
+- pako (gzip support)
 
-## 开发者提示
+## Developer Notes
 
-- CLI 会自动识别深度文件是否为 gzip 压缩（魔数判断），支持纯文本与 `.gz`。
-- 深度面板会以 karyotype 布局为基准对齐到 LINKVIEW 输出，支持两套深度数据上下对称绘制。
+- The CLI auto-detects gzip by magic bytes and supports both plain text and `.gz`.
+- Depth panels are aligned to LINKVIEW output using karyotype layout; supports symmetric rendering for HiFi/Nano.
+- Web UI and CLI both normalize PAF input to 6-column LINKVIEW format and log normalization statistics.
 
