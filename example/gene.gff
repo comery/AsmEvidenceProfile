@@ -1,0 +1,8 @@
+chrA	.	gene	5447	5994	.	-	.	ID=gene1;Name=gene1	
+chrA	.	mRNA	5447	5994	.	-	.	ID=gene1.t1;Parent=gene1;Name=gene1.t1	
+chrA	.	exon	5958	5994	.	-	.	ID=gene1.t1.exon1;Parent=gene1.t1	
+chrA	.	CDS	5958	5994	.	-	0	ID=cds.gene1.t1;Parent=gene1.t1	
+chrA	.	exon	5717	5866	.	-	.	ID=gene1.t1.exon2;Parent=gene1.t1	
+chrA	.	CDS	5717	5866	.	-	1	ID=cds.gene1.t1;Parent=gene1.t1	
+chrA	.	exon	5447	5469	.	-	.	ID=gene1.t1.exon3;Parent=gene1.t1	
+chrA	.	CDS	5447	5469	.	-	1	ID=cds.gene1.t1;Parent=gene1.t1	

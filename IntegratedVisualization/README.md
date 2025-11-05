@@ -1,6 +1,6 @@
 # Integrated Visualization
 
-An interactive web tool that integrates GCI depth plots with LINKVIEW alignment visualization, aligned by genome coordinates.
+An interactive web tool that integrates [GCI](https://github.com/yeeus/GCI) depth plots with [LINKVIEW](https://github.com/YangJianshun/LINKVIEW2) alignment visualization, aligned by genome coordinates.
 
 ## Highlights
 
@@ -31,32 +31,33 @@ it looks like: ![web_ui](../images/webUI.png)
 
 - Inputs
   - Karyotype: paste or upload karyotype text.
+  
+     ```text
+     chrA:0:30973342
+     chrB:0:28856103
+     ```
+
+     
   - Depth data:
     - Global mode: upload HiFi (`depth1`) and optionally Nano (`depth2`).
     - Per-chromosome mode: upload per-chromosome files for HiFi/Nano (A/B groups supported in the UI).
   - Alignment data (required): upload your main alignment file (PAF, BLAST, MUMmer, or LINKVIEW 6-column).
   - Optional PAF files: optionally upload HiFi/Nano PAF files; they will be merged with the main file.
-
+  
 - Alignment normalization
   - Raw PAF/BLAST/MUMmer outputs are accepted directly; no manual conversion is required.
   - Blank and comment lines (`#`) are ignored.
 
+- Annotation
+  
+  - highlight file
+  
+  - GFF file
+  
 - Generate
+
   - Optionally configure parameters in the sidebar.
   - Click “Generate Visualization”. The SVG renders either in an interactive viewer or as inline SVG.
-
-
-## Minimal Example & Demo Script
-
-Place your test files under `example/` at the repository root. Example run (produces `images/integrated_output.svg`):
-```bash
-node IntegratedVisualization/cli/iv-cli.js \
-  --out images/integrated_output.svg \
-  --karyotype example/karyotype.txt \
-  --depth1 example/hifi.depth.txt \
-  --depth2 example/nano.depth.txt \
-  --alignments example/alignments.txt
-```
 
 ## Build
 

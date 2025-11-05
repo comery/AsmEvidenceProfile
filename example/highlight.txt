@@ -1,0 +1,2 @@
+chrA	256204	704155	yellow
+chrB	2599	26390	red
