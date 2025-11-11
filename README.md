@@ -16,7 +16,7 @@ AsmEvidenceProfile provides visual evidence for genome assemblies by combining d
 ## Quick Start (Static Montage)
 Prepare `alignments.txt`, `sequence.fa.fai`, `hifi.depth.gz`, `nano.depth.gz` (optional `karyotype.txt`), then run:
 ```
-python3 static/integrated_montage.py example/scaffold_38.paf -t 3 -k example/karyotype.txt --svg_width 1600 --svg_space 0.15 --fai example/sequence.fa.fai --hifi_a example/chai.mix.test_hifi.depth --nano_a example/chai.mix.test_nano.depth --hifi_b example/scaffold_38.hifi.depth --nano_b example/scaffold_38.nano.depth -w 10000 -o images/integrated_output --chro_axis --chro_axis_density 2 --scale_y_ratio 0.05 --max-depth-ratio 3 --panel_gap 100 --top_margin 100
+python3 static/integrated_montage.py example/alignment.paf -t 3 -k example/karyotype.txt --svg_width 1600 --svg_space 0.15 --fai example/sequence.fa.fai --hifi_a example/chrA.hifi.depth.gz --nano_a example/chrA.nano.depth.gz --hifi_b example/chrB.hifi.depth.gz --nano_b example/chrB.nano.depth.gz -w 10000 -o example/integrated_output --chro_axis --chro_axis_density 2 --scale_y_ratio 0.05 --max-depth-ratio 3 --panel_gap 100
 ```
 Output: `images/integrated_output.svg`. Set `--output_format pdf` to export PDF.
 ![integrated_output](images/integrated_output.svg)
